@@ -1,0 +1,10 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+            "python.defaultInterpreterPath": "C:/Users/phamm/.conda/envs/outfit_recommendation/python.exe",
+    }
+}
