@@ -4,15 +4,16 @@ import torch.utils.model_zoo as model_zoo
 from torchvision.models import resnet18
 
 
-# Image Encoder using ResNet18 initialized with pretrained weights from ImageNet
+# Define the Image Encoder using ResNet18
 class ImageEncoder(nn.Module):
-    def __init__(self, image_dim):
+    def __init__(self):
         super(ImageEncoder, self).__init__()
-        resnet_model = resnet18(pretrained=True)
-        # Remove the classification head
-        resnet_model = nn.Sequential(*list(resnet_model.children())[:-1])
-        resnet_model[-1] = nn.Linear(512, image_dim)
-        self.features = resnet_model
+        self.resnet18 = resnet18(pretrained=True)
+        self.embedding_layer = nn.Linear(
+            1000, 64
+        )  # Assuming ResNet18 output size is 1000
 
     def forward(self, x):
-        return self.features(x)
+        x = self.resnet18(x)
+        x = self.embedding_layer(x)
+        return x
