@@ -22,13 +22,19 @@ class OutfitCompatibilityModel(nn.Module):
         text_embeddings = self.text_encoder(texts)
         outfit_features = torch.cat([image_embeddings, text_embeddings], dim=1)
 
-        # Calculate outfit token by prepending it to the outfit features
-        outfit_token = self.outfit_token.repeat(outfit_features.size(0), 1).unsqueeze(1)
-        outfit_features = torch.cat([outfit_token, outfit_features.unsqueeze(1)], dim=1)
+        # Repeat outfit_token along the batch dimension
+        outfit_token = self.outfit_token.unsqueeze(0).repeat(outfit_features.size(0), 1)
 
+        # Concatenate the outfit_token to the outfit_features along the second dimension
+        outfit_features = torch.cat([outfit_token.unsqueeze(1), outfit_features.unsqueeze(1)], dim=1)
+
+        # Permute dimensions for transformer
+        outfit_features = outfit_features.permute(1, 0, 2)
+
+        # Apply transformer encoder
         transformer_output = self.transformer_encoder(outfit_features)
-        outfit_score = self.mlp(
-            transformer_output[:, 0, :]
-        )  # Use the output of the outfit token
+
+        # Use the output of the outfit token for MLP
+        outfit_score = self.mlp(transformer_output[0, :, :])
 
         return outfit_score
