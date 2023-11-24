@@ -117,11 +117,13 @@ class TripletImageLoader(torch.utils.data.Dataset):
         transform=None,
         loader=default_image_loader,
     ):
+        #region Setting directories to images and data json file
         rootdir = os.path.join(args.datadir, "polyvore_outfits", args.polyvore_split)
-        self.impath = os.path.join(args.datadir, "polyvore_outfits", "images")
+        self.imagePath = os.path.join(args.datadir, "polyvore_outfits", "images")
         self.is_train = split == "train"
         data_json = os.path.join(rootdir, "%s.json" % split)
         outfit_data = json.load(open(data_json, "r"))
+        #endregion
 
         # get list of images and make a mapping used to quickly organize the data
         im2type = {}
@@ -221,7 +223,7 @@ class TripletImageLoader(torch.utils.data.Dataset):
 
     def load_train_item(self, image_id):
         """Returns a single item in the triplet and its data"""
-        imfn = os.path.join(self.impath, "%s.jpg" % image_id)
+        imfn = os.path.join(self.imagePath, "%s.jpg" % image_id)
         img = self.loader(imfn)
         if self.transform is not None:
             img = self.transform(img)
@@ -376,7 +378,7 @@ class TripletImageLoader(torch.utils.data.Dataset):
             )
 
         anchor = self.imnames[index]
-        img1 = self.loader(os.path.join(self.impath, "%s.jpg" % anchor))
+        img1 = self.loader(os.path.join(self.imagePath, "%s.jpg" % anchor))
         if self.transform is not None:
             img1 = self.transform(img1)
 

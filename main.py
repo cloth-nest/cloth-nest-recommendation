@@ -15,7 +15,7 @@ from torchvision import transforms
 from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
 
-import Resnet_18
+from image_encoder import ImageEncoder
 from polyvore_outfits import TripletImageLoader
 from tripletnet import Tripletnet
 from type_specific_network import TypeSpecificNet
@@ -187,12 +187,14 @@ parser.add_argument(
 
 
 def main():
+    # region Loading Args
     global args
     args = parser.parse_args()
     args.cuda = not args.no_cuda and torch.cuda.is_available()
     torch.manual_seed(args.seed)
     if args.cuda:
         torch.cuda.manual_seed(args.seed)
+    # endregion
 
     normalize = transforms.Normalize(
         mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
@@ -221,7 +223,7 @@ def main():
         **kwargs
     )
 
-    model = Resnet_18.resnet18(pretrained=True, embedding_size=args.dim_embed)
+    model = ImageEncoder.resnet18(pretrained=True, embedding_size=args.dim_embed)
     csn_model = TypeSpecificNet(args, model, len(test_loader.dataset.typespaces))
 
     criterion = torch.nn.MarginRankingLoss(margin=args.margin)
@@ -491,3 +493,4 @@ def adjust_learning_rate(optimizer, epoch):
 
 if __name__ == "__main__":
     main()
+
