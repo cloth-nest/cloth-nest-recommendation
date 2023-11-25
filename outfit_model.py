@@ -18,43 +18,58 @@ class OutfitCompatibilityModel(nn.Module):
         self.mlp = nn.Sequential(nn.Linear(128, 64), nn.ReLU(), nn.Linear(64, 1))
 
     def forward(self, images, texts):
-        # Assuming images is of shape (batch_size, num_items, ...)
+        # Assuming images is of shape (batch_size, num_outfits, max_items_per_outfit, ...)
         # and texts is a 2D list where each sublist corresponds to text descriptions for the items within an outfit
 
         # Initialize empty list to store features for items in all outfits
         outfit_item_features = []
 
-        # Process each item in the outfit
-        for i in range(
-            images.size(1)
-        ):  # Assuming images is of shape (batch_size, num_items, ...)
-            # Extract individual item's image and text
-            item_image = images[:, i, ...]
-            item_text = [texts[j][i] for j in range(len(texts))]
-            print(f"item_image: {item_image}; item_text: {item_text}")
+        # Process each outfit
+        for outfit_index in range(images.size(1)):
+            # Extract all items' images and texts for the current outfit
+            outfit_images = images[:, outfit_index, ...]
+            outfit_texts = [texts[j][outfit_index] for j in range(len(texts))]
 
-            # Encode item's image using ResNet18
-            item_image_embedding = self.image_encoder(item_image)
+            # Initialize empty list to store features for items in the current outfit
+            outfit_item_features_current = []
 
-            # Encode item's text using TextEncoder
-            item_text_embedding = self.text_encoder(item_text)
+            # Process each item in the current outfit
+            for item_index in range(outfit_images.size(1)):
+                # Extract individual item's image and text
+                item_image = outfit_images[:, item_index, ...]
+                item_text = outfit_texts[item_index]
 
-            # Concatenate image and text embeddings to form the item's embedding
-            item_features = torch.cat(
-                [item_image_embedding, item_text_embedding], dim=-1
+                print(f"item_image: {item_image.shape} item_text: {item_text}")
+                
+                # Encode item's image using ResNet18
+                item_image_embedding = self.image_encoder(item_image)
+
+                # Encode item's text using TextEncoder
+                item_text_embedding = self.text_encoder(item_text)
+
+                # Concatenate image and text embeddings to form the item's embedding
+                item_features = torch.cat(
+                    [item_image_embedding, item_text_embedding], dim=-1
+                )
+
+                # Append item features to the list for the current outfit
+                outfit_item_features_current.append(item_features)
+
+            # Stack individual item embeddings to form the set of feature vectors F for the current outfit
+            outfit_item_features_current = torch.stack(
+                outfit_item_features_current, dim=1
             )
 
-            # Append item features to the list for all outfits
-            outfit_item_features.append(item_features)
+            # Append the set of feature vectors for the current outfit to the list for all outfits
+            outfit_item_features.append(outfit_item_features_current)
 
-        # Stack individual item embeddings to form the set of feature vectors F
-        outfit_item_features = torch.stack(outfit_item_features, dim=1)
+        # Stack the set of feature vectors for all outfits along the second dimension
+        outfit_item_features = torch.stack(outfit_item_features, dim=2)
 
-        # Prepend the outfit token along the second dimension
+        # Prepend the outfit token along the third dimension
         outfit_token = (
             self.outfit_token.unsqueeze(0).unsqueeze(1).repeat(images.size(0), 1, 1)
         )
-
         outfit_features = torch.cat([outfit_token, outfit_item_features], dim=2)
 
         # Apply transformer encoder
