@@ -4,7 +4,7 @@ import torch.nn as nn
 import math
 import torch.utils.model_zoo as model_zoo
 from torchvision.models import resnet18
-
+import logging
 
 # Define the Image Encoder using ResNet18
 class ImageEncoder(nn.Module):
@@ -16,19 +16,19 @@ class ImageEncoder(nn.Module):
         )  # Assuming ResNet18 output size is 1000
 
     def forward(self, x):
-        print("-" * 10)
-        # print(f"ImageEncoder - initial x's shape: {x.shape}")
-        # print(f"ImageEncoder - initial x: {x}")
+        # logging.debug("-" * 10)
+        # logging.debug(f"ImageEncoder - initial x's shape: {x.shape}")
+        # logging.debug(f"ImageEncoder - initial x: {x}")
         # Ensure x has at least 3 dimensions
         if len(x.shape) < 3:
             x = x.unsqueeze(0)
 
         x = self.resnet18(x)
-        # print(f"ImageEncoder - after resnet18 x's shape: {x.shape}")
-        # print(f"ImageEncoder - after resnet18 x: {x}")
+        # logging.debug(f"ImageEncoder - after resnet18 x's shape: {x.shape}")
+        # logging.debug(f"ImageEncoder - after resnet18 x: {x}")
 
         x = self.fc_layer(x)
-        print(f"ImageEncoder - after fc_layer x's shape: {x.shape}")
-        print("-" * 10)
+        logging.debug(f"ImageEncoder - after fc_layer x's shape: {x.shape}")
+        logging.debug("-" * 10)
 
         return x
