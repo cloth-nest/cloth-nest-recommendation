@@ -18,6 +18,11 @@ def get_dimensions_and_lengths(lst):
     while isinstance(lst, list):
         dimensions += 1
         lengths.append(len(lst))
-        lst = lst[0] if len(lst) > 0 else None  
-        
+        lst = lst[0] if len(lst) > 0 else None
+
         return dimensions, lengths
+
+
+def get_dict_first_n_items(dict, n):
+    first_n_dict_items = {key: dict[key] for key in list(dict)[:n]}
+    return first_n_dict_items
