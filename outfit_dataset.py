@@ -44,7 +44,7 @@ class OutfitDataset(Dataset):
                 # Load JSON content
                 outfit_data = json.load(file)
                 """Includes the outfit_id and the items (id + index) (Taken from data json file)"""
-                
+
                 # Log JSON content
                 # logging.debug(f"OutfitDataset - JSON Content: {json.dumps(outfit_data, indent=2)}")
 
@@ -73,6 +73,7 @@ class OutfitDataset(Dataset):
             )
         # endregion
 
+        # region Load imageNames and map itemIdentifier (<setId>_<index>) to itemId
         imageNames = set()
         itemIdentifier2ItemId = {}
         for outfit in outfit_data:
@@ -86,7 +87,9 @@ class OutfitDataset(Dataset):
             f"OutfitDataset - itemIdentifier2ItemId's 1st 10 items: {get_dict_first_n_items(itemIdentifier2ItemId, 10)}"
         )
         logging.debug(f"imageNames 1st 10 items: {list(imageNames)[:10]}")
+        # endregion
 
+        # region Map item_id to their index in imageNames list
         imageNames = list(imageNames)
         itemIdToIndex = {}
         for index, itemId in enumerate(imageNames):
@@ -94,7 +97,26 @@ class OutfitDataset(Dataset):
         logging.debug(
             f"OutfitDataset - itemIdToIndex's 1st 10 items: {get_dict_first_n_items(itemIdToIndex, 10)}"
         )
+        # endregion
 
+        # region Map item_ids to their text description
+        itemIdToDescription = {}
+        for itemId in imageNames:
+            desc = item_metadata[itemId]["title"]
+            if not desc:
+                desc = item_metadata[itemId]["url_name"]
+
+            # The encoding then decoding help remove any unknown characters
+            desc = desc.replace("\n", "").encode("utf-8", "ignore").strip().lower().decode('utf-8')
+
+            itemIdToDescription[itemId] = desc
+
+        logging.debug(
+            f"OutfitDataset - itemIdToDescription's 1st 10 items: {get_dict_first_n_items(itemIdToDescription, 10)}"
+        )
+        # endregion
+
+        self.itemIdToDescription = itemIdToDescription
         self.outfit_data = outfit_data
         self.itemIdentifier2ItemId = itemIdentifier2ItemId
         self.imageNames = imageNames
