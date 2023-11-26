@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import numpy as np
 from torch.utils.data import Dataset
 from PIL import Image
 from utils import get_dict_first_n_items
@@ -33,9 +34,14 @@ class OutfitDataset(Dataset):
         metadata_file_path = os.path.join(
             datadir, "polyvore_outfits", "polyvore_item_metadata.json"
         )
+        compatibility_task_file_path = os.path.join(
+            rootdir, "compatibility_%s.txt" % split
+        )
 
-        self.imagePath = os.path.join(datadir, "polyvore_outfits", "images")
-
+        self.images_path = os.path.join(datadir, "polyvore_outfits", "images")
+        self.transform = transform
+        self.loader = loader
+        self.split = split
         # endregion
 
         # region Read JSON for outfits' itemsId and index
@@ -107,7 +113,13 @@ class OutfitDataset(Dataset):
                 desc = item_metadata[itemId]["url_name"]
 
             # The encoding then decoding help remove any unknown characters
-            desc = desc.replace("\n", "").encode("utf-8", "ignore").strip().lower().decode('utf-8')
+            desc = (
+                desc.replace("\n", "")
+                .encode("utf-8", "ignore")
+                .strip()
+                .lower()
+                .decode("utf-8")
+            )
 
             itemIdToDescription[itemId] = desc
 
@@ -116,18 +128,91 @@ class OutfitDataset(Dataset):
         )
         # endregion
 
+        # region Extract compatibility questions
+        compatibility_questions = load_compatibility_questions(
+            compatibility_task_file_path, itemIdentifier2ItemId
+        )
+        logging.debug(
+            f"OutfitDataset - compatibility_questions's 1st 10 items: {compatibility_questions[:10]}"
+        )
+        # endregion
+
+        outfits = []
+        (item_ids, label) = compatibility_questions[0]
+        cur_outfit = {}
+        items_descriptions = [itemIdToDescription[item_id] for item_id in item_ids]
+        cur_outfit["outfit_images"] = self.load_images(item_ids)
+        for image in cur_outfit["outfit_images"]:
+            logging.debug(f"OutfitDataset - image: {image.shape}")
+
+        logging.debug(f"OutfitDataset - cur_outfit_images: {cur_outfit}")
+
+        cur_outfit["outfit_label"] = label
+        cur_outfit["outfit_texts"] = items_descriptions
+
+        logging.debug(f"OutfitDataset - cur_outfit: {cur_outfit}")
+
+        self.compatibility_questions = compatibility_questions
         self.itemIdToDescription = itemIdToDescription
         self.outfit_data = outfit_data
         self.itemIdentifier2ItemId = itemIdentifier2ItemId
         self.imageNames = imageNames
-        self.transform = transform
-        self.loader = loader
-        self.split = split
+
+    def load_images(self, image_ids):
+        images = []
+        for image_id in image_ids:
+            image_path = os.path.join(self.images_path, "%s.jpg" % image_id)
+            img = self.loader(image_path)
+            if self.transform is not None:
+                img = self.transform(img)
+
+            images.append(img)
+
+        return images
 
     def __len__(self):
-        return len(self.data)
+        return len(self.compatibility_questions)
 
     def __getitem__(self, idx):
         # Implement data loading logic based on your specific dataset structure
         sample = self.data[idx]
         return sample
+
+
+def load_compatibility_questions(file_path, itemIdentifierToItemId):
+    """Returns the list of compatibility questions for the
+    split"""
+    with open(file_path, "r") as f:
+        lines = f.readlines()
+
+    compatibility_questions = []
+    for line in lines:
+        data = line.strip().split()
+        # [1:] means taking items from index 1 -> end in list
+        compat_question, _, _ = parse_iminfo(data[1:], itemIdentifierToItemId)
+        compatibility_questions.append((compat_question, int(data[0])))
+
+    return compatibility_questions
+
+
+def parse_iminfo(question, itemIdentifierToItemId, gt=None):
+    """Maps the questions from the FITB and compatibility tasks back to
+    their index in the precomputed matrix of features
+
+    question: List of images to measure compatibility between
+    itemIdToIndex: Dictionary mapping an image name to its location in a
+        precomputed matrix of features
+    gt: optional, the ground truth outfit set this item belongs to
+    """
+    questions = []
+    is_correct = np.zeros(len(question), np.bool_)
+    for index, itemIdentifier in enumerate(question):
+        set_id = itemIdentifier.split("_")[0]
+        if gt is None:
+            gt = set_id
+
+        itemId = itemIdentifierToItemId[itemIdentifier]
+        questions.append(itemId)
+        is_correct[index] = set_id == gt
+
+    return questions, is_correct, gt
