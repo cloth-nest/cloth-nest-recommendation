@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import numpy as np
+import torch
 from torch.utils.data import Dataset
 from PIL import Image
 from utils import get_dict_first_n_items
@@ -137,22 +138,23 @@ class OutfitDataset(Dataset):
         )
         # endregion
 
-        outfits = []
+        # logging.debug(f"OutfitDataset - cur_outfit: {cur_outfit}")
+
+        # region Test out an outfit
         (item_ids, label) = compatibility_questions[0]
         cur_outfit = {}
         items_descriptions = [itemIdToDescription[item_id] for item_id in item_ids]
+
         cur_outfit["outfit_images"] = self.load_images(item_ids)
-        for image in cur_outfit["outfit_images"]:
-            logging.debug(f"OutfitDataset - image: {image.shape}")
-
-        logging.debug(f"OutfitDataset - cur_outfit_images: {cur_outfit}")
-
         cur_outfit["outfit_label"] = label
         cur_outfit["outfit_texts"] = items_descriptions
 
-        logging.debug(f"OutfitDataset - cur_outfit: {cur_outfit}")
+        logging.debug(
+            f"OutfitDataset - outfit_images.shape: {cur_outfit['outfit_images'].shape}, items_descriptions: {len(items_descriptions)}"
+        )
+        # endregion
 
-        self.compatibility_questions = compatibility_questions
+        self.compatibility_questions = compatibility_questions[:20]
         self.itemIdToDescription = itemIdToDescription
         self.outfit_data = outfit_data
         self.itemIdentifier2ItemId = itemIdentifier2ItemId
@@ -168,15 +170,21 @@ class OutfitDataset(Dataset):
 
             images.append(img)
 
-        return images
+        return torch.stack(images, dim=0)
 
     def __len__(self):
         return len(self.compatibility_questions)
 
     def __getitem__(self, idx):
         # Implement data loading logic based on your specific dataset structure
-        sample = self.data[idx]
-        return sample
+        (item_ids, label) = self.compatibility_questions[idx]
+        items_descriptions = [self.itemIdToDescription[item_id] for item_id in item_ids]
+
+        return {
+            "outfit_images": self.load_images(item_ids),
+            "outfit_texts": items_descriptions,
+            "outfit_label": label,
+        }
 
 
 def load_compatibility_questions(file_path, itemIdentifierToItemId):
