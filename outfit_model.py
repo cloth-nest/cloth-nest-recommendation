@@ -6,10 +6,6 @@ from transformer_encoder import TransformerEncoder
 from utils import get_dimensions_and_lengths
 import logging
 
-# Set the root logger level to WARNING to disable logs with levels INFO and DEBUG
-logging.basicConfig(level=logging.DEBUG)
-
-
 
 # Define the Outfit Compatibility Model
 class OutfitCompatibilityModel(nn.Module):
@@ -132,8 +128,19 @@ class OutfitCompatibilityModel(nn.Module):
             f"OutfitCompatibilityModel - outfit_features.shape: {outfit_features.shape}"
         )
 
-        # Apply transformer encoder
-        transformer_output = self.transformer_encoder(outfit_features)
+        # Assuming all_outfits_item_features has shape (batch_size, max_items, embedding_dim)
+        max_items = all_outfits_item_features.size(1)
+
+        # Generate mask to avoid attending to padded elements
+        mask = self.generate_mask(max_items)
+
+        # Reshape the mask to (max_items + 1, max_items + 1)
+        mask = mask.reshape(max_items + 1, max_items + 1)
+
+        # Apply transformer encoder with the mask
+        transformer_output = self.transformer_encoder(
+            outfit_features.transpose(0, 1), mask=mask
+        ).transpose(0, 1)
 
         logging.debug(
             f"OutfitCompatibilityModel - transformer_output.shape: {transformer_output.shape}"
@@ -147,10 +154,15 @@ class OutfitCompatibilityModel(nn.Module):
         )
 
         # Use the output of the outfit token for MLP
-        outfit_score = self.mlp(global_outfit_representation)
+        outfit_score = self.mlp(global_outfit_representation).squeeze(1)
 
         logging.debug(f"OutfitCompatibilityModel - outfit_score: {outfit_score.shape}")
         logging.debug("OutfitCompatibilityModel - END")
         logging.debug("!" * 10)
 
         return outfit_score
+
+    def generate_mask(self, max_items):
+        # Create a square mask with dimensions (max_items + 1, max_items + 1)
+        mask = torch.triu(torch.ones(max_items + 1, max_items + 1), diagonal=1).bool()
+        return mask
