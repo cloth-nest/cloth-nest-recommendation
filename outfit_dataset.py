@@ -1,13 +1,12 @@
 import json
 import logging
 import os
+import random
 import numpy as np
 import torch
 from torch.utils.data import Dataset
 from PIL import Image
 from utils import get_dict_first_n_items
-
-logging.basicConfig(level=logging.DEBUG)
 
 
 def default_image_loader(path):
@@ -133,6 +132,9 @@ class OutfitDataset(Dataset):
         compatibility_questions = load_compatibility_questions(
             compatibility_task_file_path, itemIdentifier2ItemId
         )
+
+        # random.shuffle(compatibility_questions)
+
         logging.debug(
             f"OutfitDataset - compatibility_questions's 1st 10 items: {compatibility_questions[:10]}"
         )
@@ -154,7 +156,10 @@ class OutfitDataset(Dataset):
         )
         # endregion
 
-        self.compatibility_questions = compatibility_questions[:20]
+        random.shuffle(compatibility_questions)
+        compatibility_questions = compatibility_questions[:20]
+
+        self.compatibility_questions = compatibility_questions
         self.itemIdToDescription = itemIdToDescription
         self.outfit_data = outfit_data
         self.itemIdentifier2ItemId = itemIdentifier2ItemId
