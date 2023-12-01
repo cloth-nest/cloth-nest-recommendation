@@ -185,6 +185,7 @@ parser.add_argument(
     help="parameter for loss for image-image similarity",
 )
 
+
 def main():
     # region Loading Args
     global args
@@ -199,7 +200,8 @@ def main():
         mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
     )
 
-    fn = os.path.join(args.datadir, "polyvore_outfits", "polyvore_item_metadata.json")
+    fn = os.path.join(args.datadir, "polyvore_outfits",
+                      "polyvore_item_metadata.json")
     meta_data = json.load(open(fn, "r"))
     text_feature_dim = 6000
     kwargs = {"num_workers": 8, "pin_memory": True} if args.cuda else {}
@@ -222,8 +224,10 @@ def main():
         **kwargs
     )
 
-    model = ImageEncoder.resnet18(pretrained=True, embedding_size=args.dim_embed)
-    csn_model = TypeSpecificNet(args, model, len(test_loader.dataset.typespaces))
+    model = ImageEncoder.resnet18(
+        pretrained=True, embedding_size=args.dim_embed)
+    csn_model = TypeSpecificNet(
+        args, model, len(test_loader.dataset.typespaces))
 
     criterion = torch.nn.MarginRankingLoss(margin=args.margin)
     tnet = Tripletnet(args, csn_model, text_feature_dim, criterion)
@@ -320,6 +324,7 @@ def main():
     tnet.load_state_dict(checkpoint["state_dict"])
     test_acc = test(test_loader, tnet)
 
+
 def train(train_loader, tnet, criterion, optimizer, epoch):
     losses = AverageMeter()
     accs = AverageMeter()
@@ -402,6 +407,8 @@ def train(train_loader, tnet, criterion, optimizer, epoch):
                     emb_norms.avg,
                 )
             )
+
+
 def test(test_loader, tnet):
     # switch to evaluation mode
     tnet.eval()
@@ -436,4 +443,58 @@ def save_checkpoint(state, is_best, filename="checkpoint.pth.tar"):
     filename = directory + filename
     torch.save(state, filename)
     if is_best:
-        shutil.copyfile(filename, "runs/%s/" % (args.name) + "model_best.pth.tar")
+        shutil.copyfile(filename, "runs/%s/" %
+                        (args.name) + "model_best.pth.tar")
+
+
+class TrainData:
+    def __init__(self, images, text, has_text, conditions=None):
+        has_text = has_text.float()
+        if args.cuda:
+            images, text, has_text = images.cuda(), text.cuda(), has_text.cuda()
+        images, text, has_text = Variable(
+            images), Variable(text), Variable(has_text)
+
+        if conditions is not None and not args.use_fc:
+            if args.cuda:
+                conditions = conditions.cuda()
+
+            conditions = Variable(conditions)
+
+        self.images = images
+        self.text = text
+        self.has_text = has_text
+        self.conditions = conditions
+
+    def __len__(self):
+        return self.images.size(0)
+
+
+class AverageMeter(object):
+    """Computes and stores the average and current value"""
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
+
+
+def adjust_learning_rate(optimizer, epoch):
+    """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
+    lr = args.lr * ((1 - 0.015) ** epoch)
+    for param_group in optimizer.param_groups:
+        param_group["lr"] = lr
+
+
+if __name__ == "__main__":
+    main()
