@@ -402,3 +402,38 @@ def train(train_loader, tnet, criterion, optimizer, epoch):
                     emb_norms.avg,
                 )
             )
+def test(test_loader, tnet):
+    # switch to evaluation mode
+    tnet.eval()
+    embeddings = []
+
+    # for test/val data we get images only from the data loader
+    for batch_idx, images in enumerate(test_loader):
+        if args.cuda:
+            images = images.cuda()
+        images = Variable(images)
+        embeddings.append(tnet.embeddingnet(images).data)
+
+    embeddings = torch.cat(embeddings)
+    metric = tnet.metric_branch
+    auc = test_loader.dataset.test_compatibility(embeddings, metric)
+    acc = test_loader.dataset.test_fitb(embeddings, metric)
+    total = auc + acc
+    print(
+        "\n{} set: Compat AUC: {:.2f} FITB: {:.1f}\n".format(
+            test_loader.dataset.split, round(auc, 2), round(acc * 100, 1)
+        )
+    )
+
+    return total
+
+
+def save_checkpoint(state, is_best, filename="checkpoint.pth.tar"):
+    """Saves checkpoint to disk"""
+    directory = "runs/%s/" % (args.name)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    filename = directory + filename
+    torch.save(state, filename)
+    if is_best:
+        shutil.copyfile(filename, "runs/%s/" % (args.name) + "model_best.pth.tar")
