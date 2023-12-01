@@ -319,3 +319,86 @@ def main():
     checkpoint = torch.load("runs/%s/" % (args.name) + "model_best.pth.tar")
     tnet.load_state_dict(checkpoint["state_dict"])
     test_acc = test(test_loader, tnet)
+
+def train(train_loader, tnet, criterion, optimizer, epoch):
+    losses = AverageMeter()
+    accs = AverageMeter()
+    emb_norms = AverageMeter()
+    mask_norms = AverageMeter()
+
+    # switch to train mode
+    tnet.train()
+    for batch_idx, (
+        img1,
+        desc1,
+        has_text1,
+        img2,
+        desc2,
+        has_text2,
+        img3,
+        desc3,
+        has_text3,
+        condition,
+    ) in enumerate(train_loader):
+        anchor = TrainData(img1, desc1, has_text1, condition)
+        close = TrainData(img2, desc2, has_text2)
+        far = TrainData(img3, desc3, has_text3)
+
+        # compute output
+        (
+            acc,
+            loss_triplet,
+            loss_mask,
+            loss_embed,
+            loss_vse,
+            loss_sim_t,
+            loss_sim_i,
+        ) = tnet(anchor, far, close)
+
+        # encorages similar text inputs (sim_t) and image inputs (sim_i) to
+        # embed close to each other, images operate on the general embedding
+        loss_sim = args.sim_t_loss * loss_sim_t + args.sim_i_loss * loss_sim_i
+
+        # cross-modal similarity regularizer on the general embedding
+        loss_vse_w = args.vse_loss * loss_vse
+
+        # sparsity and l2 regularizer
+        loss_reg = args.embed_loss * loss_embed + args.mask_loss * loss_mask
+
+        loss = loss_triplet + loss_reg
+        if args.vse_loss > 0:
+            loss += loss_vse_w
+        if args.sim_t_loss > 0 or args.sim_i_loss > 0:
+            loss += loss_sim
+
+        num_items = len(anchor)
+        # measure accuracy and record loss
+        losses.update(loss_triplet.data[0], num_items)
+        accs.update(acc.data[0], num_items)
+        emb_norms.update(loss_embed.data[0])
+        mask_norms.update(loss_mask.data[0])
+
+        # compute gradient and do optimizer step
+        optimizer.zero_grad()
+
+        if loss == loss:
+            loss.backward()
+            optimizer.step()
+
+        if batch_idx % args.log_interval == 0:
+            print(
+                "Train Epoch: {} [{}/{}]\t"
+                "Loss: {:.4f} ({:.4f}) \t"
+                "Acc: {:.2f}% ({:.2f}%) \t"
+                "Emb_Norm: {:.2f} ({:.2f})".format(
+                    epoch,
+                    batch_idx * num_items,
+                    len(train_loader.dataset),
+                    losses.val,
+                    losses.avg,
+                    100.0 * accs.val,
+                    100.0 * accs.avg,
+                    emb_norms.val,
+                    emb_norms.avg,
+                )
+            )
