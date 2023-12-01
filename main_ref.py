@@ -184,3 +184,138 @@ parser.add_argument(
     metavar="M",
     help="parameter for loss for image-image similarity",
 )
+
+def main():
+    # region Loading Args
+    global args
+    args = parser.parse_args()
+    args.cuda = not args.no_cuda and torch.cuda.is_available()
+    torch.manual_seed(args.seed)
+    if args.cuda:
+        torch.cuda.manual_seed(args.seed)
+    # endregion
+
+    normalize = transforms.Normalize(
+        mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+    )
+
+    fn = os.path.join(args.datadir, "polyvore_outfits", "polyvore_item_metadata.json")
+    meta_data = json.load(open(fn, "r"))
+    text_feature_dim = 6000
+    kwargs = {"num_workers": 8, "pin_memory": True} if args.cuda else {}
+    test_loader = torch.utils.data.DataLoader(
+        TripletImageLoader(
+            args,
+            "test",
+            meta_data,
+            transform=transforms.Compose(
+                [
+                    transforms.Resize(112),
+                    transforms.CenterCrop(112),
+                    transforms.ToTensor(),
+                    normalize,
+                ]
+            ),
+        ),
+        batch_size=args.batch_size,
+        shuffle=False,
+        **kwargs
+    )
+
+    model = ImageEncoder.resnet18(pretrained=True, embedding_size=args.dim_embed)
+    csn_model = TypeSpecificNet(args, model, len(test_loader.dataset.typespaces))
+
+    criterion = torch.nn.MarginRankingLoss(margin=args.margin)
+    tnet = Tripletnet(args, csn_model, text_feature_dim, criterion)
+    if args.cuda:
+        tnet.cuda()
+
+    train_loader = torch.utils.data.DataLoader(
+        TripletImageLoader(
+            args,
+            "train",
+            meta_data,
+            text_dim=text_feature_dim,
+            transform=transforms.Compose(
+                [
+                    transforms.Resize(112),
+                    transforms.CenterCrop(112),
+                    transforms.RandomHorizontalFlip(),
+                    transforms.ToTensor(),
+                    normalize,
+                ]
+            ),
+        ),
+        batch_size=args.batch_size,
+        shuffle=True,
+        **kwargs
+    )
+    val_loader = torch.utils.data.DataLoader(
+        TripletImageLoader(
+            args,
+            "valid",
+            meta_data,
+            transform=transforms.Compose(
+                [
+                    transforms.Resize(112),
+                    transforms.CenterCrop(112),
+                    transforms.ToTensor(),
+                    normalize,
+                ]
+            ),
+        ),
+        batch_size=args.batch_size,
+        shuffle=False,
+        **kwargs
+    )
+
+    best_acc = 0
+    # optionally resume from a checkpoint
+    if args.resume:
+        if os.path.isfile(args.resume):
+            print("=> loading checkpoint '{}'".format(args.resume))
+            checkpoint = torch.load(args.resume)
+            args.start_epoch = checkpoint["epoch"]
+            best_acc = checkpoint["best_prec1"]
+            tnet.load_state_dict(checkpoint["state_dict"])
+            print(
+                "=> loaded checkpoint '{}' (epoch {})".format(
+                    args.resume, checkpoint["epoch"]
+                )
+            )
+        else:
+            print("=> no checkpoint found at '{}'".format(args.resume))
+
+    cudnn.benchmark = True
+    if args.test:
+        test_acc = test(test_loader, tnet)
+        sys.exit()
+
+    parameters = filter(lambda p: p.requires_grad, tnet.parameters())
+    optimizer = optim.Adam(parameters, lr=args.lr)
+    n_parameters = sum([p.data.nelement() for p in tnet.parameters()])
+    print("  + Number of params: {}".format(n_parameters))
+
+    for epoch in range(args.start_epoch, args.epochs + 1):
+        # update learning rate
+        adjust_learning_rate(optimizer, epoch)
+        # train for one epoch
+        train(train_loader, tnet, criterion, optimizer, epoch)
+        # evaluate on validation set
+        acc = test(val_loader, tnet)
+
+        # remember best acc and save checkpoint
+        is_best = acc > best_acc
+        best_acc = max(acc, best_acc)
+        save_checkpoint(
+            {
+                "epoch": epoch + 1,
+                "state_dict": tnet.state_dict(),
+                "best_prec1": best_acc,
+            },
+            is_best,
+        )
+
+    checkpoint = torch.load("runs/%s/" % (args.name) + "model_best.pth.tar")
+    tnet.load_state_dict(checkpoint["state_dict"])
+    test_acc = test(test_loader, tnet)
