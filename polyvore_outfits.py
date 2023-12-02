@@ -16,7 +16,7 @@ def default_image_loader(path):
     return Image.open(path).convert("RGB")
 
 
-def parse_iminfo(question, im2index, id2im, gt=None):
+def parse_iminfo(question, itemIdToIndex, itemIdentifierToItemId, gt=None):
     """Maps the questions from the FITB and compatibility tasks back to
     their index in the precomputed matrix of features
 
@@ -27,13 +27,13 @@ def parse_iminfo(question, im2index, id2im, gt=None):
     """
     questions = []
     is_correct = np.zeros(len(question), np.bool_)
-    for index, im_id in enumerate(question):
-        set_id = im_id.split("_")[0]
+    for index, itemIdentifier in enumerate(question):
+        set_id = itemIdentifier.split("_")[0]
         if gt is None:
             gt = set_id
 
-        im = id2im[im_id]
-        questions.append((im2index[im], im))
+        itemId = itemIdentifierToItemId[itemIdentifier]
+        questions.append((itemIdToIndex[itemId], itemId))
         is_correct[index] = set_id == gt
 
     return questions, is_correct, gt
@@ -77,7 +77,7 @@ def load_typespaces(rootdir, rand_typespaces, num_rand_embed):
     return typespaces
 
 
-def load_compatibility_questions(fn, im2index, id2im):
+def load_compatibility_questions(fn, itemIdToIndex, itemIdentifierToItemId):
     """Returns the list of compatibility questions for the
     split"""
     with open(fn, "r") as f:
@@ -86,7 +86,8 @@ def load_compatibility_questions(fn, im2index, id2im):
     compatibility_questions = []
     for line in lines:
         data = line.strip().split()
-        compat_question, _, _ = parse_iminfo(data[1:], im2index, id2im)
+        # [1:] means taking items from index 1 -> end in list
+        compat_question, _, _ = parse_iminfo(data[1:], itemIdToIndex, itemIdentifierToItemId)
         compatibility_questions.append((compat_question, int(data[0])))
 
     return compatibility_questions
@@ -119,23 +120,30 @@ class TripletImageLoader(torch.utils.data.Dataset):
     ):
         #region Setting directories to images and data json file
         rootdir = os.path.join(args.datadir, "polyvore_outfits", args.polyvore_split)
+        """Root of the polyvore split (disjoint/non-disjoit)"""
+        
         self.imagePath = os.path.join(args.datadir, "polyvore_outfits", "images")
         self.is_train = split == "train"
+        
+        
         data_json = os.path.join(rootdir, "%s.json" % split)
+        """JSON File for phase (train, val, test)"""
+
+        
         outfit_data = json.load(open(data_json, "r"))
         #endregion
 
         # get list of images and make a mapping used to quickly organize the data
-        im2type = {}
+        itemId2Category = {}
         category2ims = {}
-        imnames = set()
-        id2im = {}
+        imageNames = set()
+        itemIdentifier2ItemId = {}
         for outfit in outfit_data:
             outfit_id = outfit["set_id"]
             for item in outfit["items"]:
-                im = item["item_id"]
-                category = meta_data[im]["semantic_category"]
-                im2type[im] = category
+                itemId = item["item_id"]
+                category = meta_data[itemId]["semantic_category"]
+                itemId2Category[itemId] = category
 
                 if category not in category2ims:
                     category2ims[category] = {}
@@ -143,18 +151,18 @@ class TripletImageLoader(torch.utils.data.Dataset):
                 if outfit_id not in category2ims[category]:
                     category2ims[category][outfit_id] = []
 
-                category2ims[category][outfit_id].append(im)
-                id2im["%s_%i" % (outfit_id, item["index"])] = im
-                imnames.add(im)
+                category2ims[category][outfit_id].append(itemId)
+                itemIdentifier2ItemId["%s_%i" % (outfit_id, item["index"])] = itemId
+                imageNames.add(itemId)
 
-        imnames = list(imnames)
-        im2index = {}
-        for index, im in enumerate(imnames):
-            im2index[im] = index
+        imageNames = list(imageNames)
+        itemIdToIndex = {}
+        for index, itemId in enumerate(imageNames):
+            itemIdToIndex[itemId] = index
 
         self.data = outfit_data
-        self.imnames = imnames
-        self.im2type = im2type
+        self.imageNames = imageNames
+        self.itemId2Category = itemId2Category
         self.typespaces = load_typespaces(
             rootdir, args.rand_typespaces, args.num_rand_embed
         )
@@ -180,18 +188,18 @@ class TripletImageLoader(torch.utils.data.Dataset):
                     assert len(vec) == text_dim
                     self.desc2vecs[label] = vec
 
-            self.im2desc = {}
-            for im in imnames:
-                desc = meta_data[im]["title"]
+            self.itemIdToDescription = {}
+            for itemId in imageNames:
+                desc = meta_data[itemId]["title"]
                 if not desc:
-                    desc = meta_data[im]["url_name"]
+                    desc = meta_data[itemId]["url_name"]
 
                 desc = desc.replace("\n", "").encode("ascii", "ignore").strip().lower()
 
                 # sometimes descriptions didn't map to any known words so they were
                 # removed, so only add those which have a valid feature representation
                 if desc and desc in self.desc2vecs:
-                    self.im2desc[im] = desc
+                    self.itemIdToDescription[itemId] = desc
 
             # At train time we pull the list of outfits and enumerate the pairwise
             # comparisons between them to train with.  Negatives are pulled by the
@@ -215,10 +223,10 @@ class TripletImageLoader(torch.utils.data.Dataset):
         else:
             # pull the two task's questions for test and val splits
             fn = os.path.join(rootdir, "fill_in_blank_%s.json" % split)
-            self.fitb_questions = load_fitb_questions(fn, im2index, id2im)
+            self.fitb_questions = load_fitb_questions(fn, itemIdToIndex, itemIdentifier2ItemId)
             fn = os.path.join(rootdir, "compatibility_%s.txt" % split)
             self.compatibility_questions = load_compatibility_questions(
-                fn, im2index, id2im
+                fn, itemIdToIndex, itemIdentifier2ItemId
             )
 
     def load_train_item(self, image_id):
@@ -228,8 +236,8 @@ class TripletImageLoader(torch.utils.data.Dataset):
         if self.transform is not None:
             img = self.transform(img)
 
-        if image_id in self.im2desc:
-            text = self.im2desc[image_id]
+        if image_id in self.itemIdToDescription:
+            text = self.itemIdToDescription[image_id]
             text_features = self.desc2vecs[text]
             has_text = 1
         else:
@@ -237,7 +245,7 @@ class TripletImageLoader(torch.utils.data.Dataset):
             has_text = 0.0
 
         has_text = np.float32(has_text)
-        item_type = self.im2type[image_id]
+        item_type = self.itemId2Category[image_id]
         return img, text_features, has_text, item_type
 
     def sample_negative(self, outfit_id, item_id, item_type):
@@ -291,10 +299,10 @@ class TripletImageLoader(torch.utils.data.Dataset):
             num_comparisons = 0.0
             for i in range(n_items - 1):
                 item1, img1 = outfit[i]
-                type1 = self.im2type[img1]
+                type1 = self.itemId2Category[img1]
                 for j in range(i + 1, n_items):
                     item2, img2 = outfit[j]
-                    type2 = self.im2type[img2]
+                    type2 = self.itemId2Category[img2]
                     condition = self.get_typespace(type1, type2)
                     embed1 = embeds[item1][condition].unsqueeze(0)
                     embed2 = embeds[item2][condition].unsqueeze(0)
@@ -332,10 +340,10 @@ class TripletImageLoader(torch.utils.data.Dataset):
         for q_index, (questions, answers, is_correct) in enumerate(self.fitb_questions):
             answer_score = np.zeros(len(answers), dtype=np.float32)
             for index, (answer, img1) in enumerate(answers):
-                type1 = self.im2type[img1]
+                type1 = self.itemId2Category[img1]
                 score = 0.0
                 for question, img2 in questions:
-                    type2 = self.im2type[img2]
+                    type2 = self.itemId2Category[img2]
                     condition = self.get_typespace(type1, type2)
                     embed1 = embeds[question][condition].unsqueeze(0)
                     embed2 = embeds[answer][condition].unsqueeze(0)
@@ -377,7 +385,7 @@ class TripletImageLoader(torch.utils.data.Dataset):
                 condition,
             )
 
-        anchor = self.imnames[index]
+        anchor = self.imageNames[index]
         img1 = self.loader(os.path.join(self.imagePath, "%s.jpg" % anchor))
         if self.transform is not None:
             img1 = self.transform(img1)
@@ -391,4 +399,4 @@ class TripletImageLoader(torch.utils.data.Dataset):
         if self.is_train:
             return len(self.pos_pairs)
 
-        return len(self.imnames)
+        return len(self.imageNames)
