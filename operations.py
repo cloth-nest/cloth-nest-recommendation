@@ -7,6 +7,8 @@ from PIL import Image
 from io import BytesIO
 import logging
 
+logging.getLogger("PIL").setLevel(logging.WARNING)
+
 
 def extract_features(image_url, model):
     """
@@ -52,5 +54,7 @@ def extract_features(image_url, model):
         return normalized_result
 
     except Exception as e:
-        logging.error(f"operations.py - extract_features() - EXCEPTION: {e}")
+        logging.error(
+            f"operations.py - extract_features() - EXCEPTION: {e.with_traceback}"
+        )
         return None
