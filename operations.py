@@ -18,10 +18,10 @@ def extract_features(image_url, model):
         logging.debug(f"operations.py - extract_features() - image_url: {image_url}")
 
         response = requests.get(image_url)
-        img = Image.open(BytesIO(response.content)).resize((224, 224))
 
-        # Tensorflow, Keras works with numerical data, so we need to convert image to Numpy array
-        img_array = image.img_to_array(img)
+        with Image.open(BytesIO(response.content)) as img:
+            # Tensorflow, Keras works with numerical data, so we need to convert image to Numpy array
+            img_array = image.img_to_array(img.resize((224, 224)))
 
         logging.debug(
             f"operations.py - extract_features() - img_array's shape: {img_array.shape}"
@@ -57,4 +57,4 @@ def extract_features(image_url, model):
         logging.error(
             f"operations.py - extract_features() - EXCEPTION: {e.with_traceback}"
         )
-        return None
+        raise e
