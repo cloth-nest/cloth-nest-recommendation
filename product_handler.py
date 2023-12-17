@@ -16,9 +16,46 @@ from consts import (
 )
 from operations import extract_features
 import utils
+from flask import Blueprint, jsonify, request, current_app as app
+
+endpoint_product_blueprint = Blueprint("product/recommend", __name__)
 
 
-def add_products_as_recommend_candidate(new_products, model):
+@endpoint_product_blueprint.route("/product/recommend", methods=["POST"])
+def add_products_to_recommend():
+    try:
+        new_products_info = request.get_json()
+        model = app.model
+
+        logging.info(f"Endpoint POST/product received JSON: {new_products_info}")
+
+        if not isinstance(new_products_info, list):
+            return jsonify({"error": "Invalid JSON format. Expected a list."}), 400
+
+        (
+            add_success,
+            already_existed_product_id,
+        ) = __add_products_as_recommend_candidate__(
+            new_products=new_products_info, model=model
+        )
+
+        if add_success:
+            return jsonify({"message": "Products added successfully"}), 201
+        else:
+            return (
+                jsonify(
+                    {
+                        "error": f"Product with id {already_existed_product_id} already exists"
+                    }
+                ),
+                400,
+            )
+    except Exception as e:
+        logging.exception(f"Endpoint POST/product has exception: {e.with_traceback}")
+        return jsonify({"error": str(e)}), 500
+
+
+def __add_products_as_recommend_candidate__(new_products, model):
     """
     Add products to the recommendation system's storage for later processing and recommendation
 
@@ -29,7 +66,11 @@ def add_products_as_recommend_candidate(new_products, model):
 
     """
     try:
-        logging.info("-" * 50)
+        logging.info("-" * 100)
+        logging.info(
+            "[START] product_handler.py - add_products_as_recommend_candidate()]"
+        )
+
         products_info_catalog = []
         products_features_catalog = []
 
@@ -65,7 +106,7 @@ def add_products_as_recommend_candidate(new_products, model):
                 logging.error(
                     f"product_handler.py - add_product_recommend_candidate() - [X] Product with id - {new_product_info[PRODUCT_CATALOG_FIELD_PRODUCT_ID]} already exists in catalog"
                 )
-                return False
+                return False, new_product_info[PRODUCT_CATALOG_FIELD_PRODUCT_ID]
 
             new_product_feature = extract_features(
                 image_url=new_product_info[PRODUCT_CATALOG_FIELD_PRODUCT_IMAGE],
@@ -91,11 +132,15 @@ def add_products_as_recommend_candidate(new_products, model):
 
         products_info_catalog.extend(new_products_info)
         pickle.dump(products_info_catalog, open(PRODUCTS_INFO_CATALOG_FILE, "wb"))
-        logging.info("-" * 50)
 
-        return True
+        logging.info(
+            "[END] product_handler.py - add_products_as_recommend_candidate()]"
+        )
+        logging.info("-" * 100)
+
+        return True, -1
     except Exception as e:
         logging.exception(
-            f"product_handler.py - add_product_recommend_candidate() - [X] EXCEPTION: {e}"
+            f"product_handler.py - add_product_recommend_candidate() - [X] EXCEPTION: {e.with_traceback}"
         )
-        return False
+        raise e
