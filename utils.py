@@ -44,7 +44,12 @@ def get_feature_by_product_id(product_id, products_features_catalog):
 
 def image_to_numpy_array(image_url):
     try:
-        with requests.get(image_url) as response:
+        # It seems that some websites have anti-crawling measures so we add this to counter that. Reference: https://stackoverflow.com/questions/70500064/retrieving-an-image-gives-403-error-while-it-works-with-browser
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36"
+        }
+
+        with requests.get(image_url, headers=headers) as response:
             if response.status_code == 200:
                 with Image.open(BytesIO(response.content)) as img:
                     return np.array(img.resize((224, 224)))
