@@ -14,7 +14,9 @@ endpoint_recommendation_blueprint = Blueprint("recommendation", __name__)
 )
 def get_product_recommendations(product_id):
     try:
-        recommendations_count = request.args.get("recommendations_count", default=10)
+        recommendations_count = request.args.get(
+            "recommendations_count", default=10, type=int
+        )
 
         if not check_if_product_exist(
             product_id=product_id,
@@ -38,6 +40,7 @@ def get_product_recommendations(product_id):
             )
 
         return produce_recommedations(
+            query_product_id=product_id,
             query_product_feature=product_feature,
             features_catalog=products_features_catalog,
             recommendations_count=recommendations_count,
@@ -49,7 +52,7 @@ def get_product_recommendations(product_id):
 
 
 def produce_recommedations(
-    query_product_feature, features_catalog, recommendations_count
+    query_product_id, query_product_feature, features_catalog, recommendations_count
 ):
     """
     Produce recommendations for a given product
@@ -63,10 +66,12 @@ def produce_recommedations(
     The indices of the recommended products in "features_catalog"
     """
     try:
-        if recommendations_count > len(features_catalog):
-            recommendations_count = len(features_catalog)
+        if recommendations_count > len(features_catalog) - 1:
+            recommendations_count = len(features_catalog) - 1
 
-        model = NearestNeighbors(n_neighbors=recommendations_count, algorithm="auto")
+        model = NearestNeighbors(
+            n_neighbors=recommendations_count + 1, algorithm="auto"
+        )
 
         product_features = [
             product_feature[consts.FEATURES_CATALOG_FIELD_PRODUCT_FEATURE]
@@ -84,6 +89,8 @@ def produce_recommedations(
         filtered_products_ids = [
             product_feature[consts.FEATURES_CATALOG_FIELD_PRODUCT_ID]
             for product_feature in filtered_products
+            if product_feature[consts.FEATURES_CATALOG_FIELD_PRODUCT_ID]
+            != query_product_id
         ]
         logging.debug(
             f"recommender.py - produce_recommedantions(); ids of products to recommend: {filtered_products_ids}"
