@@ -7,6 +7,8 @@ from PIL import Image
 from io import BytesIO
 import logging
 
+from utils import image_to_numpy_array
+
 logging.getLogger("PIL").setLevel(logging.WARNING)
 
 
@@ -17,12 +19,12 @@ def extract_features(image_url, model):
     try:
         logging.debug(f"operations.py - extract_features() - image_url: {image_url}")
 
-        response = requests.get(image_url)
+        img_array = image_to_numpy_array(image_url=image_url)
 
-        with Image.open(BytesIO(response.content)) as img:
-            # Tensorflow, Keras works with numerical data, so we need to convert image to Numpy array
-            img_array = image.img_to_array(img.resize((224, 224)))
-
+        if img_array is None:
+            raise Exception(
+                f"operations.py - extract_features() failed to extract image with url: {image_url}"
+            )
         logging.debug(
             f"operations.py - extract_features() - img_array's shape: {img_array.shape}"
         )
@@ -55,6 +57,6 @@ def extract_features(image_url, model):
 
     except Exception as e:
         logging.error(
-            f"operations.py - extract_features() - EXCEPTION: {e.with_traceback}"
+            f"operations.py - extract_features() - EXCEPTION - image_url: {image_url} error: {e.with_traceback}"
         )
         raise e

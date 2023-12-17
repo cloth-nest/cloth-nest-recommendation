@@ -75,7 +75,8 @@ def __add_products_as_recommend_candidate__(new_products, model):
         products_features_catalog = []
 
         if os.path.exists(PRODUCTS_INFO_CATALOG_FILE):
-            products_info_catalog = pickle.load(open(PRODUCTS_INFO_CATALOG_FILE, "rb"))
+            with open(PRODUCTS_INFO_CATALOG_FILE, "rb") as file:
+                products_info_catalog = pickle.load(file)
             logging.debug(
                 f"product_handler.py - add_product_recommend_candidate() - [0A] products_info.length: {len(products_info_catalog)}"
             )
@@ -85,9 +86,8 @@ def __add_products_as_recommend_candidate__(new_products, model):
             )
 
         if os.path.exists(PRODUCTS_FEATURES_CATALOG_FILE):
-            products_features_catalog = pickle.load(
-                open(PRODUCTS_FEATURES_CATALOG_FILE, "rb")
-            )
+            with open(PRODUCTS_FEATURES_CATALOG_FILE, "rb") as file:
+                products_features_catalog = pickle.load(file)
             logging.debug(
                 f"product_handler.py - add_product_recommend_candidate() - [0A] products_features.length: {len(products_features_catalog)}"
             )
