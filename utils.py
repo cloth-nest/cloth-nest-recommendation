@@ -3,6 +3,13 @@ import requests
 from PIL import Image
 import numpy as np
 from io import BytesIO
+import math
+
+from consts import (
+    FEATURES_CATALOG_FIELD_PRODUCT_FEATURE,
+    FEATURES_CATALOG_FIELD_PRODUCT_ID,
+    PRODUCT_CATALOG_FIELD_PRODUCT_ID,
+)
 
 
 def check_if_product_exist(product_id, products_info_catalog):
@@ -17,12 +24,22 @@ def check_if_product_exist(product_id, products_info_catalog):
     # Check if the list is not empty
     if products_info_catalog:
         for product_dictionary in products_info_catalog:
-            if "id" in product_dictionary and product_dictionary["id"] == product_id:
+            if PRODUCT_CATALOG_FIELD_PRODUCT_ID in product_dictionary and math.isclose(
+                product_dictionary[PRODUCT_CATALOG_FIELD_PRODUCT_ID], product_id
+            ):
                 return True
 
         return False
     else:
         return False
+
+
+def get_feature_by_product_id(product_id, products_features_catalog):
+    for product_feature in products_features_catalog:
+        if product_feature.get(FEATURES_CATALOG_FIELD_PRODUCT_ID) == product_id:
+            return product_feature.get(FEATURES_CATALOG_FIELD_PRODUCT_FEATURE)
+    # Return a default value or raise an exception if the "id" is not found
+    return None
 
 
 def image_to_numpy_array(image_url):

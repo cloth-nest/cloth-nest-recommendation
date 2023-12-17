@@ -16,16 +16,18 @@ from consts import (
 )
 from operations import extract_features
 import utils
-from flask import Blueprint, jsonify, request, current_app as app
+from flask import Blueprint, jsonify, request, current_app
 
-endpoint_product_blueprint = Blueprint("product/recommend", __name__)
+endpoint_product_catalog_blueprint = Blueprint("product_catalog", __name__)
 
 
-@endpoint_product_blueprint.route("/product/recommend", methods=["POST"])
+@endpoint_product_catalog_blueprint.route(
+    "/product/recommend/catalog", methods=["POST"]
+)
 def add_products_to_recommend():
     try:
         new_products_info = request.get_json()
-        model = app.model
+        model = current_app.model
 
         logging.info(f"Endpoint POST/product received JSON: {new_products_info}")
 
@@ -132,7 +134,7 @@ def __add_products_as_recommend_candidate__(new_products, model):
 
         products_info_catalog.extend(new_products_info)
         pickle.dump(products_info_catalog, open(PRODUCTS_INFO_CATALOG_FILE, "wb"))
-
+        
         logging.info(
             "[END] product_handler.py - add_products_as_recommend_candidate()]"
         )
