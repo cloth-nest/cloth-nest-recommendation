@@ -1,11 +1,6 @@
 import logging
 import os
 import pickle
-import numpy as np
-from tensorflow.keras.preprocessing import image
-from numpy.linalg import norm
-from tqdm import tqdm
-from tensorflow.keras.applications.resnet50 import preprocess_input
 from consts import (
     FEATURES_CATALOG_FIELD_PRODUCT_FEATURE,
     FEATURES_CATALOG_FIELD_PRODUCT_ID,
@@ -16,48 +11,9 @@ from consts import (
 )
 from operations import extract_features
 import utils
-from flask import Blueprint, jsonify, request, current_app
-
-endpoint_product_catalog_blueprint = Blueprint("product_catalog", __name__)
 
 
-@endpoint_product_catalog_blueprint.route(
-    "/product/recommend/catalog", methods=["POST"]
-)
-def add_products_to_recommend():
-    try:
-        new_products_info = request.get_json()
-        model = current_app.model
-
-        logging.info(f"Endpoint POST/product received JSON: {new_products_info}")
-
-        if not isinstance(new_products_info, list):
-            return jsonify({"error": "Invalid JSON format. Expected a list."}), 400
-
-        (
-            add_success,
-            already_existed_product_id,
-        ) = __add_products_as_recommend_candidate__(
-            new_products=new_products_info, model=model
-        )
-
-        if add_success:
-            return jsonify({"message": "Products added successfully"}), 201
-        else:
-            return (
-                jsonify(
-                    {
-                        "error": f"Product with id {already_existed_product_id} already exists"
-                    }
-                ),
-                400,
-            )
-    except Exception as e:
-        logging.exception(f"Endpoint POST/product has exception: {e.with_traceback}")
-        return jsonify({"error": str(e)}), 500
-
-
-def __add_products_as_recommend_candidate__(new_products, model):
+def add_products_as_recommend_candidate(new_products, model):
     """
     Add products to the recommendation system's storage for later processing and recommendation
 
@@ -134,7 +90,7 @@ def __add_products_as_recommend_candidate__(new_products, model):
 
         products_info_catalog.extend(new_products_info)
         pickle.dump(products_info_catalog, open(PRODUCTS_INFO_CATALOG_FILE, "wb"))
-        
+
         logging.info(
             "[END] product_handler.py - add_products_as_recommend_candidate()]"
         )
