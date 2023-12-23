@@ -1,27 +1,35 @@
 import torch
 import torch.nn as nn
 from sentence_transformers import SentenceTransformer
+from transformers import AutoTokenizer, AutoModel
+import logging
 
 
-# Text Encoder using SentenceBERT
+# Define the Text Encoder using SentenceBERT
 class TextEncoder(nn.Module):
-    def __init__(self, text_dim):
+    def __init__(self):
         super(TextEncoder, self).__init__()
-        self.sentence_transformer = SentenceTransformer("paraphrase-MiniLM-L6-v2")
-
-        self.fc_layer = nn.Linear(
-            self.sentence_transformer.get_sentence_embedding_dimension(), text_dim
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            "sentence-transformers/bert-base-nli-mean-tokens"
         )
+        self.sentence_bert = AutoModel.from_pretrained(
+            "sentence-transformers/bert-base-nli-mean-tokens"
+        )
+        self.fc_layer = nn.Linear(768, 64)  # Assuming SentenceBERT output size is 768
 
     def forward(self, x):
-        # If x is a list of strings, encode each string individually
-        if isinstance(x, list):
-            text_embeddings = [self.sentence_transformer.encode(text) for text in x]
-            text_embeddings = torch.tensor(text_embeddings)
-        else:
-            # Assuming x is a single string
-            text_embeddings = self.sentence_transformer.encode(x)
-            text_embeddings = torch.tensor(text_embeddings).unsqueeze(0)
+        # Tokenize the text data
+        logging.debug("-" * 10)
+        # logging.debug(f"TextEncoder - initial x: {x}")
+        tokens = self.tokenizer(
+            x, return_tensors="pt", padding=True, truncation=True, max_length=512
+        )
+        embeddings = self.sentence_bert(**tokens).last_hidden_state.mean(dim=1)
 
-        text_embedding_fc = self.fc_layer(text_embeddings)
-        return text_embedding_fc
+        # logging.debug(f"TextEncoder - embeddings.shape: {embeddings.shape}")
+        x = self.fc_layer(embeddings)
+
+        logging.debug(f"TextEncoder - x's shape after fc_layer: {x.shape}")
+        logging.debug("-" * 10)
+
+        return x
