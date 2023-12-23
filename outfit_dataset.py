@@ -143,21 +143,21 @@ class OutfitDataset(Dataset):
         # logging.debug(f"OutfitDataset - cur_outfit: {cur_outfit}")
 
         # region Test out an outfit
-        (item_ids, label) = compatibility_questions[0]
-        cur_outfit = {}
-        items_descriptions = [itemIdToDescription[item_id] for item_id in item_ids]
+        # (item_ids, label) = compatibility_questions[0]
+        # cur_outfit = {}
+        # items_descriptions = [itemIdToDescription[item_id] for item_id in item_ids]
 
-        cur_outfit["outfit_images"] = self.load_images(item_ids)
-        cur_outfit["outfit_label"] = label
-        cur_outfit["outfit_texts"] = items_descriptions
+        # cur_outfit["outfit_images"] = self.load_images(item_ids)
+        # cur_outfit["outfit_label"] = label
+        # cur_outfit["outfit_texts"] = items_descriptions
 
-        logging.debug(
-            f"OutfitDataset - outfit_images.shape: {cur_outfit['outfit_images'].shape}, items_descriptions: {len(items_descriptions)}"
-        )
+        # logging.debug(
+        #     f"OutfitDataset - outfit_images.shape: {cur_outfit['outfit_images'].shape}, items_descriptions: {len(items_descriptions)}"
+        # )
         # endregion
 
-        random.shuffle(compatibility_questions)
-        compatibility_questions = compatibility_questions[:20]
+        # random.shuffle(compatibility_questions)
+        # compatibility_questions = compatibility_questions[:20]
 
         self.compatibility_questions = compatibility_questions
         self.itemIdToDescription = itemIdToDescription

@@ -25,9 +25,9 @@ class OutfitCompatibilityModel(nn.Module):
 
         # Initialize empty list to store features for items in all outfits
         all_outfits_item_features = []
-        logging.debug("!" * 10)
-        logging.debug("OutfitCompatibilityModel - START")
-        logging.debug(f"OutfitCompatibilityModel - intial images.shape: {images.shape}")
+        logging.info("!" * 10)
+        logging.info("OutfitCompatibilityModel - START")
+        logging.info(f"OutfitCompatibilityModel - intial images.shape: {images.shape}")
 
         # Process each outfit
         for outfit_index in range(images.size(0)):
@@ -156,9 +156,9 @@ class OutfitCompatibilityModel(nn.Module):
         # Use the output of the outfit token for MLP
         outfit_score = self.mlp(global_outfit_representation).squeeze(1)
 
-        logging.debug(f"OutfitCompatibilityModel - outfit_score: {outfit_score.shape}")
-        logging.debug("OutfitCompatibilityModel - END")
-        logging.debug("!" * 10)
+        logging.info(f"OutfitCompatibilityModel - outfit_score: {outfit_score.shape}")
+        logging.info("OutfitCompatibilityModel - END")
+        logging.info("!" * 10)
 
         return outfit_score
 
