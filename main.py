@@ -1,7 +1,8 @@
 import argparse
 import logging
 import zipfile
-
+import torch
+from torchvision import transforms
 from outfit_dataset import OutfitDataset
 
 # region Adding CLI arguments
@@ -13,6 +14,10 @@ parser.add_argument(
 
 parser.add_argument(
     "--datadir", type=str, default="data", help="Path to data directory"
+)
+
+parser.add_argument(
+    "--batch_size", type=int, default=50, help="Batch size in training, default is 50"
 )
 
 parser.add_argument(
@@ -47,8 +52,50 @@ def main():
     # endregion
 
     # region [2] Loading Datasets
+    normalize = transforms.Normalize(
+        mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+    )
+
+    transform = transforms.Compose(
+        [
+            transforms.Resize(224),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            normalize,
+        ]
+    )
+
     train_dataset = OutfitDataset(
-        data_directory=args.datadir, polyvore_split=args.polyvore_split, split="train"
+        data_directory=args.datadir,
+        polyvore_split=args.polyvore_split,
+        split="train",
+        transform=transform,
+    )
+
+    valid_dataset = OutfitDataset(
+        data_directory=args.datadir,
+        polyvore_split=args.polyvore_split,
+        split="valid",
+        transform=transform,
+    )
+
+    test_dataset = OutfitDataset(
+        data_directory=args.datadir,
+        polyvore_split=args.polyvore_split,
+        split="test",
+        transform=transform,
+    )
+
+    train_data_loader = torch.utils.data.DataLoader(
+        train_dataset, batch_size=args.batch_size, shuffle=True
+    )
+
+    valid_data_loader = torch.utils.data.DataLoader(
+        valid_dataset, batch_size=args.batch_size, shuffle=True
+    )
+
+    test_data_loader = torch.utils.data.DataLoader(
+        test_dataset, batch_size=args.batch_size, shuffle=True
     )
     # endregion
 
