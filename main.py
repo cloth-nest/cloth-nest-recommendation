@@ -6,7 +6,11 @@ import zipfile
 parser = argparse.ArgumentParser()
 
 parser.add_argument(
-    "--datadir", type=str, default="data", help="Path to input data zip file"
+    "--datazip", type=str, default=None, help="Path to input data zip file"
+)
+
+parser.add_argument(
+    "--datadir", type=str, default="data", help="Path to data directory"
 )
 
 parser.add_argument(
@@ -23,6 +27,8 @@ parser.add_argument(
     help="Number of epochs to train for (default: 10)",
 )
 
+global args
+args = parser.parse_args()
 # endregion
 
 
@@ -31,11 +37,8 @@ def main():
     logging.basicConfig(level=logging.INFO)
 
     # region Extracting data zip file
-    global args
-    args = parser.parse_args()
-
-    if args.datadir is not None:
-        logging.info(f"main.py - [1] - args.data: {args.datadir}")
+    if args.datazip is not None:
+        logging.info(f"main.py - [1] - args.datazip: {args.datazip}")
         zip_ref = zipfile.ZipFile(args.data, "r")
         zip_ref.extractall("")
         zip_ref.close()
