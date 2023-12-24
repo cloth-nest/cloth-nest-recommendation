@@ -4,8 +4,25 @@ import zipfile
 
 # region Adding CLI arguments
 parser = argparse.ArgumentParser()
-parser.add_argument("--data", type=str,
-                    help="Path to input data", default=None)
+
+parser.add_argument(
+    "--datadir", type=str, default="data", help="Path to input data zip file"
+)
+
+parser.add_argument(
+    "--polyvore_split",
+    default="disjoint",
+    type=str,
+    help="sThe split of the polyvore data (either disjoint or nondisjoint)",
+)
+
+parser.add_argument(
+    "--epochs",
+    type=int,
+    default=10,
+    help="Number of epochs to train for (default: 10)",
+)
+
 # endregion
 
 
@@ -13,12 +30,12 @@ def main():
     # DEBUG - INFO - WARNING - ERROR
     logging.basicConfig(level=logging.INFO)
 
-    # region Load CLI arguments
+    # region Extracting data zip file
     global args
     args = parser.parse_args()
 
-    if args.data is not None:
-        logging.info(f"main.py - [1] - args.data: {args.data}")
+    if args.datadir is not None:
+        logging.info(f"main.py - [1] - args.data: {args.datadir}")
         zip_ref = zipfile.ZipFile(args.data, "r")
         zip_ref.extractall("")
         zip_ref.close()
