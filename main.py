@@ -2,6 +2,8 @@ import argparse
 import logging
 import zipfile
 
+from outfit_dataset import OutfitDataset
+
 # region Adding CLI arguments
 parser = argparse.ArgumentParser()
 
@@ -34,14 +36,20 @@ args = parser.parse_args()
 
 def main():
     # DEBUG - INFO - WARNING - ERROR
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
 
-    # region Extracting data zip file
+    # region [1] Extracting data zip file
     if args.datazip is not None:
         logging.info(f"main.py - [1] - args.datazip: {args.datazip}")
         zip_ref = zipfile.ZipFile(args.data, "r")
         zip_ref.extractall("")
         zip_ref.close()
+    # endregion
+
+    # region [2] Loading Datasets
+    train_dataset = OutfitDataset(
+        data_directory=args.datadir, polyvore_split=args.polyvore_split, split="train"
+    )
     # endregion
 
 

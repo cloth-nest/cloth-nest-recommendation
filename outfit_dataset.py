@@ -50,9 +50,13 @@ class OutfitDataset(Dataset):
             )
             # endregion
 
+            # region [2] Load outfit data (set id, item id, item ordering index) from JSON
             try:
                 with open(data_json_file_path, "r") as data_json_file:
                     outfit_data = json.load(data_json_file)
+                    logging.debug(
+                        f"outfit_dataset.py - __init__() - [2] outfit_data JSON content: {outfit_data[0].values()}"
+                    )
 
             except FileNotFoundError:
                 logging.error(
@@ -62,6 +66,7 @@ class OutfitDataset(Dataset):
                 logging.error(
                     f"outfit_dataset.py - __init__() - [2] Error decoding JSON in file: {data_json_file_path}"
                 )
+            # endregion
 
         except Exception as e:
             logging.exception(
