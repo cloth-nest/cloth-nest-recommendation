@@ -1,28 +1,31 @@
-import os
-import torch
+import json
+
+import logging
 
 
-def save_checkpoint(state, dataset, filename="checkpoint.pth.tar"):
-    """Saves checkpoint to disk"""
-    directory = "runs/%s/" % (dataset)
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-    filename = directory + filename
-    torch.save(state, filename)
+def load_json(json_file_path, message_prefix):
+
+    try:
+
+        with open(json_file_path, "r") as data_json_file:
+
+            json_data = json.load(data_json_file)
+
+            return json_data
+
+    except FileNotFoundError as e:
+
+        logging.error(f"{message_prefix} File not found: {json_file_path}")
+
+        raise e
+
+    except json.JSONDecodeError as e:
+
+        logging.error(
+            f"{message_prefix} Error decoding JSON in file: {json_file_path}")
+
+        raise e
 
 
-def get_dimensions_and_lengths(lst):
-    dimensions = 0
-    lengths = []
-
-    while isinstance(lst, list):
-        dimensions += 1
-        lengths.append(len(lst))
-        lst = lst[0] if len(lst) > 0 else None
-
-        return dimensions, lengths
-
-
-def get_dict_first_n_items(dict, n):
-    first_n_dict_items = {key: dict[key] for key in list(dict)[:n]}
-    return first_n_dict_items
+def get_dictionary_first_n_items(dict, n):
+    return list(dict.items())[:n]
