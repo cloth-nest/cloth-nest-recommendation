@@ -26,17 +26,17 @@ def load_app_catalogs(app):
             with open(PRODUCTS_INFO_CATALOG_FILE, "rb") as file:
                 products_info_catalog = pickle.load(file)
         else:
-            logging.error(f"Recommendation System doesn't contain any products")
+            logging.info(f"Recommendation System doesn't contain any products")
         app.products_info_catalog = products_info_catalog
 
         if os.path.exists(PRODUCTS_FEATURES_CATALOG_FILE):
             with open(PRODUCTS_FEATURES_CATALOG_FILE, "rb") as file:
                 products_features_catalog = pickle.load(file)
         else:
-            logging.error(f"Recommendation System doesn't contain any products")
+            logging.info(f"Recommendation System doesn't contain any products")
         app.products_features_catalog = products_features_catalog
 
-        logging.error(
+        logging.info(
             f"load_app_catalogs() is called - app.products_info_catalog: {len(app.products_info_catalog)}; app.products_features_catalog: {len(app.products_features_catalog)}"
         )
     except Exception as e:
@@ -95,4 +95,4 @@ def add_products_to_recommend():
 
 # This prevents our Flask app to run automatically when used in other modules. WIth this code, Flask app only runs whtn this file is run as "main script" (The command in terminal is "python this_file.py") => The "__name__" will == "__main__" in that case
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=8000)
