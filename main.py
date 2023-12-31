@@ -3,7 +3,10 @@ import logging
 import zipfile
 import torch
 from torchvision import transforms
+from outfit_compatibility_model import OutfitCompatibilityModel
 from outfit_dataset import OutfitDataset
+import torch.nn as nn
+import torch.optim as optim
 
 # region Adding CLI arguments
 parser = argparse.ArgumentParser()
@@ -98,6 +101,46 @@ def main():
         test_dataset, batch_size=args.batch_size, shuffle=True
     )
     # endregion
+
+    # region [3] Define Model & Training Utilities
+    model = OutfitCompatibilityModel()
+    focal_loss = nn.BCEWithLogitsLoss()
+    optimizer = optim.Adam(model.parameters(), lr=1e-5)
+    num_epochs = 5
+    # endregion
+
+    # region [4] Train Model
+    train(
+        model=model,
+        optimizer=optimizer,
+        focal_loss=focal_loss,
+        num_epochs=num_epochs,
+        dataloader=train_data_loader,
+        losses=[],
+        auc_scores=[],
+    )
+    # endregion
+
+
+def train(model, optimizer, focal_loss, num_epochs, dataloader, losses, auc_scores):
+    for epoch in range(num_epochs):
+        model.train()
+        for batch in dataloader:
+            images = batch["outfit_images"]
+            texts = batch["outfit_texts"]
+            labels = batch["outfit_labels"]
+
+            logging.info(f"BATCH - images.shape: {images.shape}")
+            logging.debug(f"batch - texts: {texts}")
+            logging.debug(f"batch - labels: {labels}")
+
+            optimizer.zero_grad()
+            model(images, texts)
+            # outputs = model(images, texts)
+            # loss = focal_loss(outputs, labels)
+            # loss.backward()
+            # optimizer.step()
+
 
 
 # This prevents our script to run automatically when used in other modules. With this code, the script only runs when this file is run as "main script" (The command in terminal is "python this_file.py") => The "__name__" variable will equal to "__main__" in that case
