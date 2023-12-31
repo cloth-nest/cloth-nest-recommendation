@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import random
 import torch
 from torch.utils.data import Dataset
 
@@ -31,6 +32,8 @@ class OutfitDataset(Dataset):
         - transform: The transformation for items' images
         """
         try:
+            self.transform = transform
+
             # region [1] Loading file paths
             item_metadata_json_path = os.path.join(
                 data_directory,
@@ -38,12 +41,17 @@ class OutfitDataset(Dataset):
                 POLYVORE_ITEM_METADATA_FILENAME,
             )
 
+            self.images_dir = os.path.join(
+                data_directory,
+                POLYVORE_OUTFITS_DIR_NAME,
+                POLYVORE_ITEMS_IMAGES_DIR_NAME,
+            )
+
             polyvore_split_root_dir = os.path.join(
                 data_directory, POLYVORE_OUTFITS_DIR_NAME, polyvore_split
             )
 
-            data_json_file_path = os.path.join(
-                polyvore_split_root_dir, f"{split}.json")
+            data_json_file_path = os.path.join(polyvore_split_root_dir, f"{split}.json")
 
             compatibility_file_path = os.path.join(
                 polyvore_split_root_dir, f"compatibility_{split}.txt"
@@ -88,8 +96,7 @@ class OutfitDataset(Dataset):
             # endregion
 
         except Exception as e:
-            logging.exception(
-                f"outfit_dataset.py - __init__() - exception: {e}")
+            logging.exception(f"outfit_dataset.py - __init__() - exception: {e}")
             raise e
 
     def __len__(self):
@@ -156,8 +163,7 @@ class OutfitDataset(Dataset):
 
         for item_id in items_ids:
             item_id_to_item_img_path[item_id] = os.path.join(
-                polyvore_split_root_dir,
-                POLYVORE_ITEMS_IMAGES_DIR_NAME,
+                self.images_dir,
                 f"{item_id}.jpg",
             )
 
@@ -194,13 +200,14 @@ class OutfitDataset(Dataset):
             outfit_items_ids = []
 
             for item_identifier in question[1:]:
-                outfit_items_ids.append(
-                    item_identifier_to_item_id[item_identifier])
+                outfit_items_ids.append(item_identifier_to_item_id[item_identifier])
 
-            compatibility_questions.append(
-                (is_outfit_compatible, outfit_items_ids))
+            compatibility_questions.append((is_outfit_compatible, outfit_items_ids))
 
+        random.shuffle(compatibility_questions)
+        self.compatibility_questions = compatibility_questions[:20]
         self.compatibility_questions = compatibility_questions
+
         logging.debug(
             f"outfit_dataset.py - __init__() - [5]: \n compatibility_questions's first 3 items: {compatibility_questions[:3]} \n"
         )
