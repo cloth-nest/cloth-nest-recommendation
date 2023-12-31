@@ -55,7 +55,7 @@ load_app_catalogs(app=app)
 
 @app.route("/", methods=["GET"])
 def hello():
-    return "Hello World"
+    return "Ok"
 
 
 @app.route("/product/recommend/catalog", methods=["POST"])
@@ -67,7 +67,17 @@ def add_products_to_recommend():
         logging.info(f"Endpoint POST/product received JSON: {new_products_info}")
 
         if not isinstance(new_products_info, list):
-            return jsonify({"error": "Invalid JSON format. Expected a list."}), 400
+            return (
+                    jsonify({
+                        "statusCode": 400,
+                        "message": "Invalid JSON format. Expected a list.",
+                        "error": {
+                            "code": "R03",
+                            "message": "Invalid JSON format. Expected a list."
+                        }
+                        }),
+                    400,
+                )
 
         (
             add_success,
@@ -78,19 +88,38 @@ def add_products_to_recommend():
 
         if add_success:
             load_app_catalogs(app=current_app)
-            return jsonify({"message": "Products added successfully"}), 201
+            return (
+                    jsonify({
+                        "statusCode": 201,
+                        "message": "Products added successfully",
+                        }),
+                    201,
+                )
         else:
             return (
-                jsonify(
-                    {
-                        "error": f"Product with id {already_existed_product_id} already exists"
-                    }
-                ),
-                400,
-            )
+                    jsonify({
+                        "statusCode": 400,
+                        "message": f"Product with id {already_existed_product_id} already exists",
+                        "error": {
+                            "code": "R04",
+                            "message": f"Product with id {already_existed_product_id} already exists"
+                        }
+                        }),
+                    400,
+                )
     except Exception as e:
         logging.exception(f"Endpoint POST/product has exception: {e.with_traceback}")
-        return jsonify({"error": str(e)}), 500
+        return (
+            jsonify({
+                "statusCode": 500,
+                "message": str(e),
+                "error": {
+                    "code": "R01",
+                    "message": str(e)
+                }
+            }),
+            500,
+        )
 
 
 # This prevents our Flask app to run automatically when used in other modules. WIth this code, Flask app only runs whtn this file is run as "main script" (The command in terminal is "python this_file.py") => The "__name__" will == "__main__" in that case

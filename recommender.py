@@ -23,7 +23,14 @@ def get_product_recommendations(product_id):
             products_info_catalog=current_app.products_info_catalog,
         ):
             return (
-                jsonify({"error": f"Product with id {product_id} does not exist"}),
+                jsonify({
+                    "statusCode": 400,
+                    "message": f"Product with id {product_id} does not exist",
+                    "error": {
+                        "code": "R02",
+                        "message": f"Product with id {product_id} does not exist"
+                    }
+                    }),
                 400,
             )
 
@@ -35,7 +42,14 @@ def get_product_recommendations(product_id):
 
         if product_feature is None:
             return (
-                jsonify({"error": f"Product with id {product_id} does not exist"}),
+                jsonify({
+                    "statusCode": 400,
+                    "message": f"Product with id {product_id} does not have feature",
+                    "error": {
+                        "code": "R02",
+                        "message": f"Product with id {product_id} does not exist"
+                    }
+                    }),
                 400,
             )
 
@@ -48,7 +62,17 @@ def get_product_recommendations(product_id):
 
     except Exception as e:
         logging.exception(f"Endpoint GET/product has exception: {e.with_traceback}")
-        return jsonify({"error": str(e)}), 500
+        return (
+            jsonify({
+                "statusCode": 500,
+                "message": str(e),
+                "error": {
+                    "code": "R01",
+                    "message": str(e)
+                }
+            }),
+            500,
+        )
 
 
 def produce_recommedations(
