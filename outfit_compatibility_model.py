@@ -128,11 +128,15 @@ class OutfitCompatibilityModel(nn.Module):
         # Then we will get all the first element's embeddings of all outfits because the first element is the outfit token we prepend to each. According to the paper, the token as the output of the transformer is the global outfit representation
         global_outfit_representations = transformer_output[:, 0, :]
 
+        # The outfit_scores after MLP will have shape like this (outfit_num, 1)
+        # We should squeeze the last dimension since we only need a vector of outfit scroes for calculating result
+        outfits_scores = self.mlp(global_outfit_representations).squeeze(1)
+
         logging.info(
-            f"outfit_compatibility_model.py - forward - [7] \n-all_outfits_features:{all_outfits_features.shape} \n -transformer_output' shape: {transformer_output.shape} \n- global_outfit_representations.shape: {global_outfit_representations.shape}"
+            f"outfit_compatibility_model.py - forward - [7] \n-all_outfits_features:{all_outfits_features.shape} \n- transformer_output' shape: {transformer_output.shape} \n- global_outfit_representations.shape: {global_outfit_representations.shape} \n- outfits_scores' shape: {outfits_scores.shape}"
         )
 
-        return
+        return outfits_scores
 
     def generate_mask(self, max_item_count, outfit_count, outfits_items_nums):
         """
