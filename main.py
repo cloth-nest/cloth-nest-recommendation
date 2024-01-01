@@ -1,18 +1,31 @@
 import argparse
 import logging
 import zipfile
+from matplotlib import pyplot as plt
+from sklearn.metrics import (
+    precision_score,
+    roc_auc_score,
+    accuracy_score,
+    recall_score,
+    f1_score,
+)
 import torch
 from torchvision import transforms
 from outfit_compatibility_model import OutfitCompatibilityModel
 from outfit_dataset import OutfitDataset
 import torch.nn as nn
 import torch.optim as optim
+import numpy as np
 
 # region Adding CLI arguments
 parser = argparse.ArgumentParser()
 
 parser.add_argument(
     "--datazip", type=str, default=None, help="Path to input data zip file"
+)
+
+parser.add_argument(
+    "--debug", type=bool, default=False, help="Whether should print all debug logs"
 )
 
 parser.add_argument(
@@ -44,7 +57,11 @@ args = parser.parse_args()
 
 def main():
     # DEBUG - INFO - WARNING - ERROR
-    logging.basicConfig(level=logging.DEBUG)
+    if args.debug is True:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
+    logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)
 
     # region [1] Extracting data zip file
     if args.datazip is not None:
@@ -124,20 +141,33 @@ def main():
 
     # region [4] Train Model
     train_losses = []
-    train_auc_scores = []
+    valid_auc_scores = []
     train(
         model=model,
         optimizer=optimizer,
         focal_loss=focal_loss,
         num_epochs=num_epochs,
         dataloader=train_data_loader,
+        val_dataloader=valid_data_loader,
         losses=train_losses,
-        auc_scores=train_auc_scores,
+        auc_scores=valid_auc_scores,
     )
+    show_plots(values=train_losses, label="Loss")
+    show_plots(values=valid_auc_scores, label="Valid AUC")
+
     # endregion
 
 
-def train(model, optimizer, focal_loss, num_epochs, dataloader, losses):
+def train(
+    model,
+    optimizer,
+    focal_loss,
+    num_epochs,
+    dataloader,
+    val_dataloader,
+    losses,
+    auc_scores,
+):
     for epoch in range(num_epochs):
         running_loss = 0.0
         model.train()
@@ -166,7 +196,46 @@ def train(model, optimizer, focal_loss, num_epochs, dataloader, losses):
         epoch_loss = running_loss / len(dataloader)
         losses.append(epoch_loss)
 
-        logging.info(f"Epoch {epoch + 1}/{num_epochs}, Loss: {epoch_loss} Accuracy: ")
+        epoch_auc, epoch_accuracy, epoch_precision, epoch_recall, epoch_f1 = test(
+            model=model, dataloader=val_dataloader
+        )
+        auc_scores.append(epoch_auc)
+
+        logging.warning(
+            f"\n\nEpoch {epoch + 1}/{num_epochs}, Loss: {epoch_loss} AUC: {epoch_auc} Accuracy: {epoch_accuracy} Precision: {epoch_precision} Recall: {epoch_recall} F1: {epoch_f1} \n\n"
+        )
+
+
+def test(model, dataloader):
+    model.eval()
+    all_val_labels = []
+    all_val_outputs = []
+    correct = 0
+    with torch.no_grad():
+        for val_batch in dataloader:
+            val_images = val_batch["outfit_images"]
+            val_texts = val_batch["outfit_texts"]
+            val_outfit_items_nums = val_batch["outfit_items_nums"]
+            val_labels = val_batch["outfit_labels"]
+
+            val_outputs = model(val_images, val_texts, val_outfit_items_nums)
+            val_outputs_binary = (val_outputs > 0.5).float()
+
+            all_val_labels.extend(val_labels.cpu().numpy())
+            all_val_outputs.extend(val_outputs_binary.cpu().numpy())
+
+            correct += (val_labels == val_outputs_binary).sum().item()
+
+    logging.debug(
+        f"test - all_val_labels{all_val_labels},all_val_outputs: {all_val_outputs}"
+    )
+    auc = roc_auc_score(all_val_labels, all_val_outputs)
+    accuracy = accuracy_score(all_val_labels, all_val_outputs)
+    precision = precision_score(all_val_labels, all_val_outputs)
+    recall = recall_score(all_val_labels, all_val_outputs)
+    f1 = f1_score(all_val_labels, all_val_outputs)
+
+    return auc, accuracy, precision, recall, f1
 
 
 def custom_collate(batch):
@@ -204,6 +273,15 @@ def custom_collate(batch):
         "outfit_texts": outfits_texts,
         "outfit_labels": torch.tensor(outfits_labels, dtype=torch.float),
     }
+
+
+def show_plots(values, label):
+    plt.plot(values, label=label)
+
+    plt.xlabel("Epoch", fontsize=16)
+    plt.ylabel(label, fontsize=16)
+    plt.legend(fontsize=16)
+    plt.show()
 
 
 # This prevents our script to run automatically when used in other modules. With this code, the script only runs when this file is run as "main script" (The command in terminal is "python this_file.py") => The "__name__" variable will equal to "__main__" in that case
