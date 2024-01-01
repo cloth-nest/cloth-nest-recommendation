@@ -76,7 +76,7 @@ class OutfitCompatibilityModel(nn.Module):
             # item feature vector's size is 128 in this case
             cur_outfit_features = torch.stack(cur_outfit_features)
 
-            # Prepend outfit token to set of outfit's feature vectors. The result will have a shape of (item_count + 1, item feature vector's size)
+            # Prepend outfit token to set of outfit's feature vectors. The result will have a shape of (item_count + 1, item feature vector's size). (item_count + 1) is because we just prepend the outfit token
             outfit_token_value = self.outfit_token(torch.tensor([0]))
             cur_outfit_featuress_with_token = torch.cat(
                 [
@@ -104,37 +104,53 @@ class OutfitCompatibilityModel(nn.Module):
         )
 
         # Generate mask to avoid attending to padded elements
-        # Need to decrease by 1 because all_outfits_features.size(1) = item_count + 1
+        # Need to decrease by 1 because all_outfits_features.size(1) = max_item_count + 1. Remember the +1 was because of the prepended token
         max_item_count = all_outfits_features.size(1) - 1
         outfit_count = all_outfits_features.size(0)
 
-        # Need to add 1 to max_item_count because we also need to create mask for the outfit token
-        mask_tensor = torch.ones(outfit_count, max_item_count + 1)
-
-        for i, original_length in enumerate(outfits_items_nums):
-            mask_tensor[i, original_length:] = 0
-            mask_tensor[i, max_item_count - 1] = 1
+        src_key_padding_mask = self.generate_mask(
+            outfit_count=outfit_count,
+            max_item_count=max_item_count,
+            outfits_items_nums=outfits_items_nums,
+        )
 
         logging.debug(
-            f"outfit_compatibility_model.py - forward - [6] \n- mask_tensor's shape: {mask_tensor.shape} "
+            f"outfit_compatibility_model.py - forward - [6] \n- src_key_padding_mask's shape: {src_key_padding_mask.shape} "
         )
-        # Convert the mask tensor to boolean
-        src_key_padding_mask = mask_tensor.bool()
 
-        # We need to transpose all_outfits_features (transpose = switching 2 dimensions like you are rotating the matrix) since transformer_encoder takes input with shape (sequence_length/item_count, batch_size/outfit_count, embedding_dimension)
-        # Then we will transpose the result back after we're done with the transformer
+        # We need to transpose all_outfits_features (transpose = switching 2 dimensions like you are rotating the matrix) since transformer_encoder takes input with shape (item_count, outfit_count, embedding_size)
+        # Then we will transpose the result back after we're done with the transformer to get back the originial dimensions (outfit_count, item_count, embedding_size)
         transformer_output = self.transformer_encoder(
             all_outfits_features.transpose(0, 1),
             src_key_padding_mask=src_key_padding_mask,
         ).transpose(0, 1)
 
+        # Then we will get all the first element's embeddings of all outfits because the first element is the outfit token we prepend to each. According to the paper, the token as the output of the transformer is the global outfit representation
+        global_outfit_representations = transformer_output[:, 0, :]
+
         logging.info(
-            f"outfit_compatibility_model.py - forward - [6] \n- src_mask_key_padding's shape: {src_key_padding_mask.shape} \n- transformer_output' shape: {transformer_output.shape}"
+            f"outfit_compatibility_model.py - forward - [7] \n-all_outfits_features:{all_outfits_features.shape} \n -transformer_output' shape: {transformer_output.shape} \n- global_outfit_representations.shape: {global_outfit_representations.shape}"
         )
 
         return
 
-    def generate_mask(self, item_count):
-        # Create a square mask with dimensions (item_count + 1, item_count + 1)
-        mask = torch.triu(torch.ones(item_count + 1, item_count + 1), diagonal=1).bool()
-        return mask
+    def generate_mask(self, max_item_count, outfit_count, outfits_items_nums):
+        """
+        Generate a mask with shape (outfit_count, max_item_count) to makre sure Transformer Encoder doesn't pay attention to unneeded values, in this case it's the padded elements in the outfit's feature vectors
+
+        Param:
+        - outfits_items_nums: The original number of items for each outfit. This is a list of number of items for each outfit. For example,
+        [5, 3, 4, 7] => Means outfit at index 0 originally has 5 items, outfit
+        at index 1 originally has 3 items
+
+        """
+        # Need to add 1 to max_item_count because we also need to create mask for the outfit token
+        # We initialize the mask with all 0s, which means all elements will be paid attention to
+        mask_tensor = torch.zeros(outfit_count, max_item_count + 1)
+
+        for outfit_index, original_items_nums in enumerate(outfits_items_nums):
+            # We will assign 1 to all the items that are outside of the range (0 <= x < original_items_nums + 1) which are the dummy items added as paddings. The reason we add 1 to original_items_nums is because the outfit token is prepended to the outfit feature vector so we also want to include it
+            # Assigning 1 means we will ignore these items
+            mask_tensor[outfit_index, (original_items_nums + 1) :] = 1
+
+        return mask_tensor.bool()
