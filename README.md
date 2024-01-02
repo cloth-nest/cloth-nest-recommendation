@@ -1,4 +1,3 @@
-## Link GitHub
 ## Thông tin nhóm
 - Phạm Trương Hải Đoàn - MSSV: 20520046
 - Mai Phạm Quốc Hưng - MSSV: 20521366
@@ -44,28 +43,32 @@ python main.py --help
 ```
 Kết quả khi chạy lệnh `python main.py --help`
 ```bash
-usage: main.py [-h] [--datazip DATAZIP] [--log_level LOG_LEVEL] [--datadir DATADIR]
+usage: main.py [-h] [--datazip DATAZIP] [--run_real RUN_REAL]
+               [--log_level LOG_LEVEL] [--datadir DATADIR]
+               [--checkpoint_dir CHECKPOINT_DIR] [--batch_size BATCH_SIZE]
                [--polyvore_split POLYVORE_SPLIT] [--epochs EPOCHS]
 
 options:
   -h, --help            show this help message and exit
   --datazip DATAZIP     Path to input data zip file
+  --run_real RUN_REAL   0 = train with few data to see model run; 1 = train with    
+                        whole dataset. Default is 0
   --log_level LOG_LEVEL
-                        0 = Print >= warnings, 1 = print >= info, 2 = print all
+                        0 = Print >= warnings, 1 = print >= info, 2 = print all     
   --datadir DATADIR     Path to data directory
   --checkpoint_dir CHECKPOINT_DIR
                         Path to the directory to save checkpoints
   --batch_size BATCH_SIZE
                         Batch size in training, default is 50
   --polyvore_split POLYVORE_SPLIT
-                        sThe split of the polyvore data (either disjoint or nondisjoint)  
+                        The split of the polyvore data (disjoint or nondisjoint)    
   --epochs EPOCHS       Number of epochs to train for (default: 10)
 ```
 Ví dụ sử dụng lệnh `python main.py` để huấn luyện model trong 15 epoch với số lượng mẫu mỗi đợt huấn luyện là 30, đồng thời lấy dữ liệu từ file data.zip thay vì lấy từ thư mục đã được giải nén.
 ```bash
 python main.py --epochs 15 --batch_size 30 --datazip data.zip
 ```
-4. Khi đã train xong model với ít nhất 1 vòng lặp, có thể chạy lệnh sau để mở app demo. App này sẽ sử dụng tham số trong file `best_state.pt` để áp dụng cho model và đưa ra dự đoán
+4. Khi đã train xong model với ít nhất 1 vòng lặp (hoặc bạn có thể tải [model đã được train ở đây](), có thể chạy lệnh sau để mở app demo. App này sẽ sử dụng tham số trong file `best_state.pt` để áp dụng cho model và đưa ra dự đoán
 ```bash
 streamlit run demo_app.py
 ```
