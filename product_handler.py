@@ -32,6 +32,7 @@ def add_products_as_recommend_candidate(new_products, model):
         products_info_catalog = []
         products_features_catalog = []
 
+        # Check if the catalog files exist
         if os.path.exists(PRODUCTS_INFO_CATALOG_FILE):
             with open(PRODUCTS_INFO_CATALOG_FILE, "rb") as file:
                 products_info_catalog = pickle.load(file)
@@ -43,6 +44,7 @@ def add_products_as_recommend_candidate(new_products, model):
                 f"product_handler.py - add_product_recommend_candidate() - [0A] Adding info for the 1st product of catalog: {new_products[0]}"
             )
 
+        # Check if the catalog files exist
         if os.path.exists(PRODUCTS_FEATURES_CATALOG_FILE):
             with open(PRODUCTS_FEATURES_CATALOG_FILE, "rb") as file:
                 products_features_catalog = pickle.load(file)

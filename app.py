@@ -61,11 +61,25 @@ def hello():
 @app.route("/product/recommend/catalog", methods=["POST"])
 def add_products_to_recommend():
     try:
+        # Lấy thông tin từ query parameters
+        sync_query_param = request.args.get("sync")
+
+        # Nếu sync == true thì xóa các file catalog cũ đi
+        # Sync có nghĩa là làm mới toàn bộ hệ thống recommendation
+        if sync_query_param == "true":
+            if os.path.exists(PRODUCTS_INFO_CATALOG_FILE):
+                os.remove(PRODUCTS_INFO_CATALOG_FILE)
+                logging.info(f"Deleted {PRODUCTS_INFO_CATALOG_FILE}")
+            if os.path.exists(PRODUCTS_FEATURES_CATALOG_FILE):
+                os.remove(PRODUCTS_FEATURES_CATALOG_FILE)
+                logging.info(f"Deleted {PRODUCTS_FEATURES_CATALOG_FILE}")
+
         new_products_info = request.get_json()
         model = current_app.model
 
         logging.info(f"Endpoint POST/product received JSON: {new_products_info}")
 
+        # Validate JSON format
         if not isinstance(new_products_info, list):
             return (
                     jsonify({
@@ -79,6 +93,7 @@ def add_products_to_recommend():
                     400,
                 )
 
+        # Add product to recommendation system
         (
             add_success,
             already_existed_product_id,
@@ -92,7 +107,7 @@ def add_products_to_recommend():
                     jsonify({
                         "statusCode": 201,
                         "message": "Products added successfully",
-                        }),
+                    }),
                     201,
                 )
         else:
@@ -104,7 +119,7 @@ def add_products_to_recommend():
                             "code": "R04",
                             "message": f"Product with id {already_existed_product_id} already exists"
                         }
-                        }),
+                    }),
                     400,
                 )
     except Exception as e:
