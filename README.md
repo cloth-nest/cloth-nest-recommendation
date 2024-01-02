@@ -33,10 +33,16 @@ conda activate outfit_recommendation
 ```
 Lúc này khi môi trường được kích hoạt, chương trình đã có đủ các package cần thiết để chạy
 
-3. Chạy lệnh sau để tiến hành train model. Sau khi train, các tham số của model sẽ được lưu trong thư mục `checkpoint/disjoint`, trong đó các file với định dạng `checkpoint_0.pt`, `checkpoint_1.pt` lưu kết quả train của từng vòng lặp, còn file `best_state.pt` lưu kết quả train với chỉ số chính xác cao nhất. 
+3. Chạy lệnh sau để tiến hành train model.
 ```bash
 python main.py
 ```
+Mặc đinh, model sẽ không được train trên toàn bộ tập dữ liệu khi nhập lệnh ở dưới mà chỉ trên train một số lượng rất nhỏ nhằm minh họa. Để train với toàn bộ tập dữ liệu, gó lệnh sau thay cho lệnh ở trên
+```bash
+python main.py --run_real 1
+```
+Sau khi train, các tham số của model sẽ được lưu trong thư mục `checkpoint/disjoint`, trong đó các file với định dạng `checkpoint_0.pt`, `checkpoint_1.pt` lưu kết quả train của từng vòng lặp, còn file `best_state.pt` lưu kết quả train với chỉ số chính xác cao nhất. 
+
 Có thể nhập lệnh sau để biết các argument có thể sử dụng với lệnh `python main.py` ở trên
 ```bash
 python main.py --help
@@ -64,11 +70,13 @@ options:
                         The split of the polyvore data (disjoint or nondisjoint)    
   --epochs EPOCHS       Number of epochs to train for (default: 10)
 ```
-Ví dụ sử dụng lệnh `python main.py` để huấn luyện model trong 15 epoch với số lượng mẫu mỗi đợt huấn luyện là 30, đồng thời lấy dữ liệu từ file data.zip thay vì lấy từ thư mục đã được giải nén.
+Ví dụ sử dụng lệnh `python main.py` để huấn luyện model trong 15 epoch với số lượng mẫu mỗi đợt huấn luyện là 30, đồng thời lấy dữ liệu từ file data.zip thay vì lấy từ thư mục đã được giải nén và tiến hành train trên toàn bộ tập dữ liệu.
 ```bash
-python main.py --epochs 15 --batch_size 30 --datazip data.zip
+python main.py --epochs 15 --batch_size 30 --datazip data.zip --run_real 1
 ```
-4. Khi đã train xong model với ít nhất 1 vòng lặp (hoặc bạn có thể tải [model đã được train ở đây](), có thể chạy lệnh sau để mở app demo. App này sẽ sử dụng tham số trong file `best_state.pt` để áp dụng cho model và đưa ra dự đoán
+**Lưu ý**: Train với lượng dữ liệu lớn sẽ dể làm đứng máy vì thiếu bộ nhớ
+
+4. Khi đã train xong model với ít nhất 1 vòng lặp (hoặc bạn có thể tải [model đã được train ở đây (240 MB)](https://drive.google.com/file/d/1oyQ5536D3k4DqwIXDaDIZjzLm3yEJjgB/view?usp=sharing) và giải nén vào thư mục chứa repo), có thể chạy lệnh sau để mở app demo. App này sẽ sử dụng tham số trong file `best_state.pt` để áp dụng cho model và đưa ra dự đoán
 ```bash
 streamlit run demo_app.py
 ```
