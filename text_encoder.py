@@ -3,6 +3,7 @@ from transformers import AutoTokenizer, AutoModel
 import logging
 from sentence_transformers import SentenceTransformer
 
+
 class TextEncoder(nn.Module):
     def __init__(self, output_embedding_dim=64):
         super(TextEncoder, self).__init__()
@@ -17,19 +18,21 @@ class TextEncoder(nn.Module):
         )
 
     def forward(self, x):
-        logging.debug(f"\n[TEXT ENCODER] forward START")
-        logging.debug(f"text_encoder.py - forward - [1] - input x: {x}")
+        # logging.debug(f"\n[TEXT ENCODER] forward START")
+        # logging.debug(f"text_encoder.py - forward - [1] - input x: {x}")
 
-        sentence_embeddings = self.sentence_bert.encode(x, convert_to_tensor=True)
-
-        logging.debug(
-            f"text_encoder.py - forward - [2] - x as embeddings' shape: {sentence_embeddings}"
+        sentence_embeddings = self.sentence_bert.encode(
+            x, show_progress_bar=False, convert_to_tensor=True
         )
+
+        # logging.debug(
+        #     f"text_encoder.py - forward - [2] - x as embeddings' shape: {sentence_embeddings.shape}"
+        # )
 
         final_embeddings = self.fc_layer(sentence_embeddings)
-        logging.debug(
-            f"text_encoder.py - forward - [3] - final embeddings' shape after fc layer: {final_embeddings}"
-        )
-        logging.debug(f"[TEXT ENCODER] forward END")
+        # logging.debug(
+        #     f"text_encoder.py - forward - [3] - final embeddings' shape after fc layer: {final_embeddings}"
+        # )
+        # logging.debug(f"[TEXT ENCODER] forward END")
 
         return final_embeddings

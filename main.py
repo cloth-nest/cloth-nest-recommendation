@@ -16,6 +16,8 @@ from outfit_dataset import OutfitDataset
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
+import os
+import shutil
 
 # region Adding CLI arguments
 parser = argparse.ArgumentParser()
@@ -25,11 +27,28 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--debug", type=bool, default=False, help="Whether should print all debug logs"
+    "--run_real",
+    type=int,
+    default=0,
+    help="0 = train with few data to see  model run; 1 = train with whole dataset. Default is 0",
+)
+
+parser.add_argument(
+    "--log_level",
+    type=int,
+    default=0,
+    help="0 = Print >= warnings, 1 = print >= info, 2 = print all",
 )
 
 parser.add_argument(
     "--datadir", type=str, default="data", help="Path to data directory"
+)
+
+parser.add_argument(
+    "--checkpoint_dir",
+    type=str,
+    default="checkpoint",
+    help="Path to the directory to save checkpoints",
 )
 
 parser.add_argument(
@@ -40,7 +59,7 @@ parser.add_argument(
     "--polyvore_split",
     default="disjoint",
     type=str,
-    help="sThe split of the polyvore data (either disjoint or nondisjoint)",
+    help="The split of the polyvore data (disjoint or nondisjoint)",
 )
 
 parser.add_argument(
@@ -55,18 +74,33 @@ args = parser.parse_args()
 # endregion
 
 
+# Check if CUDA (GPU support) is available
+
+if torch.cuda.is_available():
+    device = f"cuda:{torch.cuda.current_device()}"
+else:
+    device = "cpu"
+
+
+torch.set_default_device(device)
+
+
 def main():
+
     # DEBUG - INFO - WARNING - ERROR
-    if args.debug is True:
+    if args.log_level == 1:
+        logging.basicConfig(level=logging.INFO)
+    elif args.log_level == 2:
         logging.basicConfig(level=logging.DEBUG)
     else:
-        logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(level=logging.WARNING)
+
     logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)
 
     # region [1] Extracting data zip file
     if args.datazip is not None:
         logging.info(f"main.py - [1] - args.datazip: {args.datazip}")
-        zip_ref = zipfile.ZipFile(args.data, "r")
+        zip_ref = zipfile.ZipFile(args.datazip, "r")
         zip_ref.extractall("")
         zip_ref.close()
     # endregion
@@ -85,11 +119,15 @@ def main():
         ]
     )
 
+    kwargs = {"num_workers": 8, "pin_memory": True} if torch.cuda.is_available() else {
+    }
+
     train_dataset = OutfitDataset(
         data_directory=args.datadir,
         polyvore_split=args.polyvore_split,
         split="train",
         transform=transform,
+        run_real=args.run_real,
     )
 
     valid_dataset = OutfitDataset(
@@ -97,6 +135,7 @@ def main():
         polyvore_split=args.polyvore_split,
         split="valid",
         transform=transform,
+        run_real=args.run_real,
     )
 
     test_dataset = OutfitDataset(
@@ -104,6 +143,7 @@ def main():
         polyvore_split=args.polyvore_split,
         split="test",
         transform=transform,
+        run_real=args.run_real,
     )
 
     train_data_loader = torch.utils.data.DataLoader(
@@ -111,6 +151,8 @@ def main():
         batch_size=args.batch_size,
         shuffle=True,
         collate_fn=custom_collate,
+        generator=torch.Generator(device=device),
+        **kwargs,
     )
 
     valid_data_loader = torch.utils.data.DataLoader(
@@ -118,6 +160,8 @@ def main():
         batch_size=args.batch_size,
         shuffle=True,
         collate_fn=custom_collate,
+        generator=torch.Generator(device=device),
+        **kwargs,
     )
 
     test_data_loader = torch.utils.data.DataLoader(
@@ -125,18 +169,21 @@ def main():
         batch_size=args.batch_size,
         shuffle=True,
         collate_fn=custom_collate,
+        generator=torch.Generator(device=device),
+        **kwargs,
     )
 
-    logging.info(
+    logging.warning(
         f"- Number of outfits in train_data_loader: {len(train_data_loader.dataset)} \n- Number of outfits in valid_data_loader: {len(valid_data_loader.dataset)} \n -Number of outfits in test_data_loader: {len(test_data_loader.dataset)}"
     )
     # endregion
 
     # region [3] Define Model & Training Utilities
     model = OutfitCompatibilityModel()
+    model
     focal_loss = nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters(), lr=1e-5)
-    num_epochs = 3
+
     # endregion
 
     # region [4] Train Model
@@ -146,7 +193,7 @@ def main():
         model=model,
         optimizer=optimizer,
         focal_loss=focal_loss,
-        num_epochs=num_epochs,
+        num_epochs=args.epochs,
         dataloader=train_data_loader,
         val_dataloader=valid_data_loader,
         losses=train_losses,
@@ -155,6 +202,13 @@ def main():
     show_plots(values=train_losses, label="Loss")
     show_plots(values=valid_auc_scores, label="Valid AUC")
 
+    # endregion
+
+    # region [5] Test Model
+
+    final_auc, _, _, _, _ = test(model=model, dataloader=test_data_loader)
+
+    logging.warning(f"final_auc: {final_auc}")
     # endregion
 
 
@@ -173,12 +227,13 @@ def train(
         model.train()
 
         for index, batch in enumerate(dataloader):
-            outfit_images = batch["outfit_images"]
+            outfit_images = batch["outfit_images"].to(device)
             outfit_texts = batch["outfit_texts"]
             outfit_items_nums = batch["outfit_items_nums"]
-            outfit_labels = batch["outfit_labels"]
+            outfit_labels = batch["outfit_labels"].to(device)
 
-            logging.info(f"\nBATCH {index} - images.shape: {outfit_images.shape}")
+            logging.debug(
+                f"\nBATCH {index} - images.shape: {outfit_images.shape}")
             logging.debug(f"batch - texts[0]: {outfit_texts[0]}")
             logging.debug(f"batch - labels.shape: {outfit_labels.shape}")
 
@@ -201,8 +256,26 @@ def train(
         )
         auc_scores.append(epoch_auc)
 
+        directory = f"{args.checkpoint_dir}/{args.polyvore_split}/"
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        filename = f"{directory}checkpoint_{epoch}.pt"
+        torch.save(
+            {
+                "epoch": epoch,
+                "model_state_dict": model.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "auc": epoch_auc,
+            },
+            filename,
+        )
+
+        if epoch_auc >= max(auc_scores):
+            shutil.copyfile(filename, f"{directory}best_state.pt")
+
         logging.warning(
-            f"\n\nEpoch {epoch + 1}/{num_epochs}, Loss: {epoch_loss} AUC: {epoch_auc} Accuracy: {epoch_accuracy} Precision: {epoch_precision} Recall: {epoch_recall} F1: {epoch_f1} \n\n"
+            f"Epoch {epoch + 1}/{num_epochs}, Loss: {epoch_loss} AUC: {epoch_auc} Accuracy: {epoch_accuracy} Precision: {epoch_precision} Recall: {epoch_recall} F1: {epoch_f1}"
         )
 
 
@@ -213,10 +286,10 @@ def test(model, dataloader):
     correct = 0
     with torch.no_grad():
         for val_batch in dataloader:
-            val_images = val_batch["outfit_images"]
+            val_images = val_batch["outfit_images"].to(device)
             val_texts = val_batch["outfit_texts"]
             val_outfit_items_nums = val_batch["outfit_items_nums"]
-            val_labels = val_batch["outfit_labels"]
+            val_labels = val_batch["outfit_labels"].to(device)
 
             val_outputs = model(val_images, val_texts, val_outfit_items_nums)
             val_outputs_binary = (val_outputs > 0.5).float()
@@ -226,7 +299,7 @@ def test(model, dataloader):
 
             correct += (val_labels == val_outputs_binary).sum().item()
 
-    logging.debug(
+    logging.info(
         f"test - all_val_labels{all_val_labels},all_val_outputs: {all_val_outputs}"
     )
     auc = roc_auc_score(all_val_labels, all_val_outputs)
@@ -268,11 +341,24 @@ def custom_collate(batch):
         outfits_texts.append(padded_texts)
 
     return {
-        "outfit_images": torch.stack(outfits_images),
+        "outfit_images": torch.stack(outfits_images).to(device),
         "outfit_items_nums": outfits_items_nums,
         "outfit_texts": outfits_texts,
-        "outfit_labels": torch.tensor(outfits_labels, dtype=torch.float),
+        "outfit_labels": torch.tensor(outfits_labels, dtype=torch.float).to(device),
     }
+
+
+def save_checkpoint(state, is_best, filename="best-model-parameters.pt"):
+    """Saves checkpoint to disk"""
+    directory = f"runs/{args.polyvore_split}/"
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    filename = directory + filename
+    torch.save(state, filename)
+    if is_best:
+        shutil.copyfile(filename, "runs/%s/" %
+                        (args.name) + "model_best.pth.tar")
 
 
 def show_plots(values, label):

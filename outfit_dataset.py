@@ -20,6 +20,7 @@ class OutfitDataset(Dataset):
         data_directory,
         polyvore_split,
         split,
+        run_real=False,
         transform=None,
     ):
         """
@@ -33,7 +34,7 @@ class OutfitDataset(Dataset):
         """
         try:
             self.transform = transform
-
+            self.run_real = run_real
             # region [1] Loading file paths
             item_metadata_json_path = os.path.join(
                 data_directory,
@@ -51,7 +52,8 @@ class OutfitDataset(Dataset):
                 data_directory, POLYVORE_OUTFITS_DIR_NAME, polyvore_split
             )
 
-            data_json_file_path = os.path.join(polyvore_split_root_dir, f"{split}.json")
+            data_json_file_path = os.path.join(
+                polyvore_split_root_dir, f"{split}.json")
 
             compatibility_file_path = os.path.join(
                 polyvore_split_root_dir, f"compatibility_{split}.txt"
@@ -96,7 +98,8 @@ class OutfitDataset(Dataset):
             # endregion
 
         except Exception as e:
-            logging.exception(f"outfit_dataset.py - __init__() - exception: {e}")
+            logging.exception(
+                f"outfit_dataset.py - __init__() - exception: {e}")
             raise e
 
     def __len__(self):
@@ -200,13 +203,17 @@ class OutfitDataset(Dataset):
             outfit_items_ids = []
 
             for item_identifier in question[1:]:
-                outfit_items_ids.append(item_identifier_to_item_id[item_identifier])
+                outfit_items_ids.append(
+                    item_identifier_to_item_id[item_identifier])
 
-            compatibility_questions.append((is_outfit_compatible, outfit_items_ids))
+            compatibility_questions.append(
+                (is_outfit_compatible, outfit_items_ids))
 
-        random.shuffle(compatibility_questions)
-        self.compatibility_questions = compatibility_questions[:20]
-        self.compatibility_questions = compatibility_questions
+        if self.run_real:
+            self.compatibility_questions = compatibility_questions
+        else:
+            random.shuffle(compatibility_questions)
+            self.compatibility_questions = compatibility_questions[:5]
 
         logging.debug(
             f"outfit_dataset.py - __init__() - [5]: \n compatibility_questions's first 3 items: {compatibility_questions[:3]} \n"
