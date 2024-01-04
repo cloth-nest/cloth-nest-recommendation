@@ -3,8 +3,8 @@
 - Mai Phạm Quốc Hưng - MSSV: 20521366
 
 ## Sản phẩm
-- Mô hình OutfitTransformer để giái quyết bài toán Outfit Compatibility Prediction (Dự đoán độ đồng bộ của trang phục).
-- Link GitHub: https://github.com/Doan-Pham/outfit_recommendation
+- Mô hình OutfitTransformer để giải quyết bài toán Outfit Compatibility Prediction (Dự đoán độ đồng bộ của trang phục).
+- Link GitHub: https://github.com/Doan-Pham/outfit_compatibility_prediction.git
 - Bài báo tham khảo: [OutfitTransformer: Outfit Representations for Fashion Recommendation](https://arxiv.org/abs/2204.04812) của nhóm tác giả Rohan Sarkar, Navaneeth Bodla, Mariya I. Vasileva, Yen-Liang Lin, Anurag Beniwal, Alan Lu và Gerard Medioni
 
 ## Hướng dẫn cài đặt
@@ -23,27 +23,27 @@ conda create -n outfit_recommendation --file requirements.txt
 ```
 
 ## Hướng dẫn chạy source
-1. Mở Anaconda Prompt và di chuyển đến thư mục chứa source,
+1. Mở Anaconda Prompt và di chuyển đến thư mục chứa source:
 ```bash
 cd path/to/your/repo/outfit_recommendation
 ```
-2. Kích hoạt môi trường đã tạo ở bước cài đặt
+2. Kích hoạt môi trường đã tạo ở bước cài đặt:
 ```bash
 conda activate outfit_recommendation
 ```
-Lúc này khi môi trường được kích hoạt, chương trình đã có đủ các package cần thiết để chạy
+Lúc này khi môi trường được kích hoạt, chương trình đã có đủ các package cần thiết để chạy.
 
-3. Chạy lệnh sau để tiến hành train model.
+3. Chạy lệnh sau để tiến hành train model:
 ```bash
 python main.py
 ```
-Mặc đinh, model sẽ không được train trên toàn bộ tập dữ liệu khi nhập lệnh ở dưới mà chỉ trên train một số lượng rất nhỏ nhằm minh họa. Để train với toàn bộ tập dữ liệu, gó lệnh sau thay cho lệnh ở trên
+Mặc định, model sẽ không được train trên toàn bộ tập dữ liệu khi nhập lệnh ở trên mà chỉ train với một số lượng dữ liệu rất nhỏ nhằm minh họa. Để train với toàn bộ tập dữ liệu, gõ lệnh sau:
 ```bash
 python main.py --run_real 1
 ```
-Sau khi train, các tham số của model sẽ được lưu trong thư mục `checkpoint/disjoint`, trong đó các file với định dạng `checkpoint_0.pt`, `checkpoint_1.pt` lưu kết quả train của từng vòng lặp, còn file `best_state.pt` lưu kết quả train với chỉ số chính xác cao nhất. 
+Kết quả train của mỗi vòng epoch được lưu trong thư mục `checkpoint/disjoint`, trong đó các file với định dạng `checkpoint_0.pt`, `checkpoint_1.pt` lưu kết quả train của từng epoch tương ứng, còn file `best_state.pt` lưu kết quả train với chỉ số chính xác cao nhất. 
 
-Có thể nhập lệnh sau để biết các argument có thể sử dụng với lệnh `python main.py` ở trên
+Có thể nhập lệnh sau để biết các argument có thể sử dụng với lệnh `python main.py` ở trên:
 ```bash
 python main.py --help
 ```
@@ -74,9 +74,9 @@ Ví dụ sử dụng lệnh `python main.py` để huấn luyện model trong 15
 ```bash
 python main.py --epochs 15 --batch_size 30 --datazip data.zip --run_real 1
 ```
-**Lưu ý**: Train với lượng dữ liệu lớn sẽ dể làm đứng máy vì thiếu bộ nhớ
+**Lưu ý**: Train với lượng dữ liệu lớn sẽ dể làm đứng máy hoặc crash IDE vì thiếu bộ nhớ => Có thể giảm bacth_size xuống hoặc không để --run_real là 1 (Hoặc sử dụng máy với cấu hình tốt hơn).
 
-4. Khi đã train xong model với ít nhất 1 vòng lặp (hoặc bạn có thể tải [model đã được train ở đây (240 MB)](https://drive.google.com/file/d/1oyQ5536D3k4DqwIXDaDIZjzLm3yEJjgB/view?usp=sharing) và giải nén vào thư mục chứa repo), có thể chạy lệnh sau để mở app demo. App này sẽ sử dụng tham số trong file `best_state.pt` để áp dụng cho model và đưa ra dự đoán
+4. Khi đã train xong model với ít nhất 1 epoch (hoặc bạn có thể tải [model đã được train ở đây (240 MB)](https://drive.google.com/file/d/1GnA3LGX_bTvWn08k0SPaEzNaxHSSljMn/view?usp=sharing) và giải nén vào thư mục chứa repo), có thể chạy lệnh sau để mở app demo. App này sẽ sử dụng tham số trong file `best_state.pt` để áp dụng cho model và đưa ra dự đoán:
 ```bash
 streamlit run demo_app.py
 ```
