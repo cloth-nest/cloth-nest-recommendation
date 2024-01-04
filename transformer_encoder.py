@@ -13,12 +13,16 @@ class TransformerEncoder(nn.Module):
             self.transformer_layer, num_layers=num_layers
         )
 
-    def forward(self, x):
+    def forward(self, x, src_key_padding_mask):
         logging.debug(f"\n[TRANSFORMER ENCODER] forward START")
-        logging.debug(f"transformer_encoder.py - forward - [1] - input x's: {x.shape}")
+        logging.debug(
+            f"transformer_encoder.py - forward - [1] - input x's: {x.shape}")
 
-        output = self.transformer_encoder(x)
+        output = self.transformer_encoder(
+            x, src_key_padding_mask=src_key_padding_mask)
 
-        logging.debug(f"transformer_encoder.py - forward - [2] - output's shape: {output.shape}")
+        logging.debug(
+            f"transformer_encoder.py - forward - [2] - output's shape: {output.shape}"
+        )
 
         return output
