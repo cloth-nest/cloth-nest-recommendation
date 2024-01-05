@@ -10,7 +10,7 @@
 ## Hướng dẫn cài đặt
 1. Clone repo này về với [Git](https://git-scm.com)
 ```bash
-git clone https://github.com/Doan-Pham/outfit_recommendation.git
+git clone https://github.com/Doan-Pham/outfit_compatibility_prediction.git
 ```
 2. Tải file [data.zip (2.3GB)](https://drive.google.com/file/d/1696cpHFamwTH9ViyUYlPHCvL0X52Ww16/view?usp=sharing) về cùng thư mục với repo vừa clone và giải nén
 3. Cài đặt miniconda3 (Một trình quản lý package và virtual environment cho Python) từ [trang chủ của miniconda3](https://docs.conda.io/projects/miniconda/en/latest/)
