@@ -47,12 +47,15 @@ uploaded_files = st.file_uploader(
     "Upload outfit images", type=["jpg", "jpeg", "png"], accept_multiple_files=True
 )
 
+text_inputs = []
+
 if uploaded_files:
-    st.image(
-        uploaded_files,
-        width=400,
-        caption=[index for index, value in enumerate(uploaded_files)],
-    )
+
+    for i, uploaded_file in enumerate(uploaded_files):
+        st.image(uploaded_file,
+                 caption=f"Uploaded Image {i + 1}", use_column_width=True)
+        text_input = st.text_input(f"Text for Image {i + 1}", "")
+        text_inputs.append(text_input)
 
     if st.button("Check Compatibility"):
         temp_dir = "uploaded"
@@ -76,7 +79,10 @@ if uploaded_files:
             ),
             images_paths=images_paths,
         ).unsqueeze(0)
-        texts = [[""] * images.size(1)]
+
+        print(f"texts: {text_inputs}")
+
+        texts = [text_inputs]
         lengths = [images.size(1)]
 
         print(
